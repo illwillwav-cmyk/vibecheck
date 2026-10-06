@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- A plugin host loads code signed by other developers. Without this, the hardened runtime
+         refuses every plugin that was not signed by the same team as the app. -->
+    <key>com.apple.security.cs.disable-library-validation</key><true/>
+    <!-- Many plugins generate code at runtime or ship their own JIT. -->
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key><true/>
+    <key>com.apple.security.cs.allow-jit</key><true/>
+    <key>com.apple.security.device.audio-input</key><true/>
+</dict>
+</plist>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="VibeCheck">
+  <defs>
+    <linearGradient id="stone" gradientUnits="userSpaceOnUse" x1="81.9" y1="0" x2="942.1" y2="0">
+      <stop offset="0" stop-color="#cdc9bf"/>
+      <stop offset="1" stop-color="#8fa6b3"/>
+    </linearGradient>
+  </defs>
+  <!-- Seven rounded bars whose centres run along a V: tall at the tips, short at the point.
+       The gradient runs from warm stone to cool slate, left to right. -->
+  <g fill="url(#stone)">
+    <rect x="81.9" y="81.9" width="76.8" height="481.7" rx="38.4"/>
+    <rect x="212.5" y="245.4" width="76.8" height="407.1" rx="38.4"/>
+    <rect x="343.0" y="408.8" width="76.8" height="332.6" rx="38.4"/>
+    <rect x="473.6" y="572.2" width="76.8" height="258.0" rx="38.4"/>
+    <rect x="604.2" y="408.8" width="76.8" height="332.6" rx="38.4"/>
+    <rect x="734.7" y="245.4" width="76.8" height="407.1" rx="38.4"/>
+    <rect x="865.3" y="81.9" width="76.8" height="481.7" rx="38.4"/>
+  </g>
+</svg>

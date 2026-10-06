@@ -1,0 +1,50 @@
+#pragma once
+
+#include <juce_audio_processors/juce_audio_processors.h>
+
+namespace wright
+{
+/** The same tremolo as the template fixture, written the way a person who cares would write it:
+    the modulator is a wavetable read rather than a transcendental per sample, and the gain is
+    applied with a vectorised multiply. */
+class TremoloProcessor final : public juce::AudioProcessor
+{
+public:
+    TremoloProcessor();
+    ~TremoloProcessor() override = default;
+
+    void prepareToPlay (double sampleRate, int samplesPerBlock) override;
+    void releaseResources() override {}
+    void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+
+    juce::AudioProcessorEditor* createEditor() override;
+    bool hasEditor() const override { return true; }
+
+    const juce::String getName() const override { return "Sway"; }
+    bool acceptsMidi() const override { return false; }
+    bool producesMidi() const override { return false; }
+    double getTailLengthSeconds() const override { return 0.0; }
+
+    int getNumPrograms() override { return 1; }
+    int getCurrentProgram() override { return 0; }
+    void setCurrentProgram (int) override {}
+    const juce::String getProgramName (int) override { return {}; }
+    void changeProgramName (int, const juce::String&) override {}
+
+    void getStateInformation (juce::MemoryBlock&) override {}
+    void setStateInformation (const void*, int) override {}
+
+    juce::AudioParameterFloat& getDepthParameter() { return *depth; }
+
+private:
+    void buildWavetable();
+
+    std::vector<float> wavetable;
+    std::vector<float> gainScratch;
+    double tablePosition = 0.0;
+    double tableIncrement = 0.0;
+    juce::AudioParameterFloat* depth = nullptr;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TremoloProcessor)
+};
+} // namespace wright

@@ -1,0 +1,16 @@
+build/
+.DS_Store
+*.user
+
+# Build output and tooling caches
+build-release/
+build-win/
+dist/
+.cache/
+compile_commands.json
+nm_output.txt
+
+# Built outputs of the test plugins; rebuild them with fixtures/gearspacesuite/build_installers.sh
+fixtures/gearspacesuite/installers/
+fixtures/gearspacesuite/compile_commands.json
+fixtures/gearspacesuite/build/

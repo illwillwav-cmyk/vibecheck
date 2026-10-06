@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VibeCheck</title>
+<meta name="description" content="Measure, check and compare audio plugins, and see which ones look machine-generated.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'%3E%3Crect width='1024' height='1024' rx='220' fill='%23161614'/%3E%3Cg fill='%23cdc9bf'%3E%3Crect x='170' y='170' width='77' height='430' rx='38'/%3E%3Crect x='300' y='300' width='77' height='370' rx='38'/%3E%3Crect x='430' y='430' width='77' height='290' rx='38'/%3E%3Crect x='560' y='300' width='77' height='370' rx='38'/%3E%3Crect x='690' y='170' width='77' height='430' rx='38'/%3E%3C/g%3E%3C/svg%3E">
+<style>
+  :root {
+    --paper: #f3f1ec; --card: #fbfaf7; --ink: #1d1c19; --muted: #5d5b54; --faint: #8b887f;
+    --line: #dcd8cf; --accent: #4a4943; --on-accent: #f6f4ef; --slate: #56707e;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #0d0d0c; --card: #171715; --ink: #efede7; --muted: #aeaba2; --faint: #7d7a72;
+            --line: #2b2a27; --accent: #cdc9bf; --on-accent: #161614; --slate: #8fa6b3; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    padding: 56px 20px 72px; min-height: 100vh;
+  }
+  main { max-width: 640px; margin: 0 auto; }
+  .mark { width: 64px; height: 64px; display: block; margin-bottom: 22px; }
+  h1 { font-size: clamp(34px, 7vw, 46px); line-height: 1.08; letter-spacing: -0.02em; margin: 0 0 12px; text-wrap: balance; }
+  .lede { color: var(--muted); font-size: 18px; margin: 0 0 34px; max-width: 34em; text-wrap: pretty; }
+  .downloads { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; margin-bottom: 10px; }
+  @media (max-width: 520px) { .downloads { grid-template-columns: 1fr; } }
+  a.get {
+    display: flex; flex-direction: column; gap: 2px; padding: 18px 20px; border-radius: 14px;
+    text-decoration: none; background: var(--card); color: var(--ink); border: 1px solid var(--line);
+  }
+  a.get strong { font-size: 18px; letter-spacing: -0.01em; }
+  a.get span { font-size: 13.5px; color: var(--muted); }
+  a.get.mine { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+  a.get.mine span { color: inherit; opacity: 0.72; }
+  a.get:hover { transform: translateY(-1px); }
+  a.get:focus-visible { outline: 3px solid var(--slate); outline-offset: 2px; }
+  .also { font-size: 14px; color: var(--faint); margin: 0 0 40px; }
+  .also a { color: var(--muted); }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--faint); margin: 0 0 12px; font-weight: 600; }
+  details { border-top: 1px solid var(--line); padding: 14px 0; }
+  details:last-of-type { border-bottom: 1px solid var(--line); }
+  summary { cursor: pointer; font-weight: 600; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; color: var(--faint); font-weight: 400; }
+  details[open] summary::after { content: "\2212"; }
+  details p, details ol { color: var(--muted); margin: 10px 0 0; }
+  details ol { padding-left: 1.3em; }
+  details li { margin: 4px 0; }
+  .features { display: grid; gap: 10px; margin: 0 0 40px; padding: 0; list-style: none; color: var(--muted); }
+  .features b { color: var(--ink); font-weight: 600; }
+  code { font: 13.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
+  footer { margin-top: 44px; font-size: 13px; color: var(--faint); }
+  footer a { color: var(--muted); }
+  #setup { display: none; border: 1px dashed var(--line); border-radius: 12px; padding: 16px 18px; color: var(--muted); margin-bottom: 30px; }
+</style>
+</head>
+<body>
+<main>
+  <svg class="mark" viewBox="0 0 1024 1024" role="img" aria-label="VibeCheck">
+    <defs><linearGradient id="g" gradientUnits="userSpaceOnUse" x1="82" y1="0" x2="942" y2="0"><stop offset="0" stop-color="#8b887f"/><stop offset="1" stop-color="#56707e"/></linearGradient></defs>
+    <g fill="url(#g)">
+      <rect x="81.9" y="81.9" width="76.8" height="481.7" rx="38.4"/><rect x="212.5" y="245.4" width="76.8" height="407.1" rx="38.4"/>
+      <rect x="343" y="408.8" width="76.8" height="332.6" rx="38.4"/><rect x="473.6" y="572.2" width="76.8" height="258" rx="38.4"/>
+      <rect x="604.2" y="408.8" width="76.8" height="332.6" rx="38.4"/><rect x="734.7" y="245.4" width="76.8" height="407.1" rx="38.4"/>
+      <rect x="865.3" y="81.9" width="76.8" height="481.7" rx="38.4"/>
+    </g>
+  </svg>
+
+  <h1>VibeCheck</h1>
+  <p class="lede">Measure an audio plugin, check that it behaves, compare two of them, and see which ones in your library look machine-generated.</p>
+
+  <div id="setup">This page does not know where the downloads live yet. Open <code>docs/index.html</code> and set <code>REPO</code> to <code>"owner/repository"</code>, or open the page as <code>?repo=owner/repository</code>.</div>
+
+  <div class="downloads">
+    <a class="get" id="win" href="#"><strong>Download for Windows</strong><span>Windows 10 or 11, 64-bit &middot; installer</span></a>
+    <a class="get" id="mac" href="#"><strong>Download for Mac</strong><span>macOS 11 or later &middot; Apple silicon and Intel</span></a>
+  </div>
+  <p class="also"><span id="alt"></span> <a id="zip" href="#">Windows portable zip</a> &middot; <a id="rel" href="#">All versions</a></p>
+
+  <h2>What it does</h2>
+  <ul class="features">
+    <li><b>Graph Analyzer</b> &mdash; frequency response, distortion, phase, aliasing and more, measured by playing test signals through the plugin.</li>
+    <li><b>Plugin Health</b> &mdash; thirteen robustness checks: finite output, buffer-size independence, latency honesty, state save and restore.</li>
+    <li><b>AI Check</b> &mdash; reads each plugin's file for the marks of generated code, and with a Deep check measures what its audio thread does.</li>
+    <li><b>A/B Compare</b> and <b>Performance Profiler</b> &mdash; two plugins side by side, and what each one costs the CPU.</li>
+  </ul>
+
+  <h2>Opening it the first time</h2>
+  <p style="color:var(--muted);margin:0 0 12px">These downloads are not signed with a paid certificate, so your computer asks once before it runs them. Nothing is wrong with the file.</p>
+  <details id="winhelp"><summary>Windows: "Windows protected your PC"</summary>
+    <ol><li>Run the installer you downloaded.</li><li>Click <b>More info</b>.</li><li>Click <b>Run anyway</b>.</li></ol>
+  </details>
+  <details id="machelp"><summary>Mac: "can't be opened because Apple cannot check it"</summary>
+    <ol><li>Open the disk image and drag <b>VibeCheck</b> into <b>Applications</b>.</li><li>Right-click (or Control-click) VibeCheck and choose <b>Open</b>, then <b>Open</b> again.</li><li>If that option is missing: <b>System Settings &rarr; Privacy &amp; Security</b>, scroll down, click <b>Open Anyway</b>.</li></ol>
+  </details>
+
+  <footer>Made by Make Believe Studios. The app checks once at launch whether a newer version exists, by reading one small public file; it sends nothing about you or your plugins.</footer>
+</main>
+
+<script>
+  // Set to "owner/repository" to pin the downloads. Left empty, a page served from
+  // https://owner.github.io/repository/ works the address out for itself.
+  const REPO = "";
+
+  function repoName() {
+    const asked = new URLSearchParams(location.search).get("repo");
+    if (asked && /^[\w.-]+\/[\w.-]+$/.test(asked)) return asked;
+    if (REPO) return REPO;
+    const host = location.hostname.match(/^([^.]+)\.github\.io$/);
+    const first = location.pathname.split("/").filter(Boolean)[0];
+    return host && first ? host[1] + "/" + first : "";
+  }
+
+  const repo = repoName();
+  const base = repo ? "https://github.com/" + repo + "/releases/latest/download/" : "";
+  const set = (id, href) => { const el = document.getElementById(id); if (el) el.href = href || "#"; };
+
+  if (!repo) document.getElementById("setup").style.display = "block";
+  set("win", base && base + "VibeCheck-Windows-Setup.exe");
+  set("mac", base && base + "VibeCheck-macOS.dmg");
+  set("zip", base && base + "VibeCheck-Windows-portable.zip");
+  set("rel", repo && "https://github.com/" + repo + "/releases");
+
+  // Put the visitor's own system first and open the matching instructions.
+  const ua = navigator.userAgent || "";
+  const mine = /Windows/i.test(ua) ? "win" : /Mac/i.test(ua) && !/iPhone|iPad/i.test(ua) ? "mac" : "";
+  if (mine) {
+    const other = mine === "win" ? "mac" : "win";
+    const a = document.getElementById(mine);
+    a.classList.add("mine");
+    a.parentNode.insertBefore(a, document.getElementById(other));
+    document.getElementById(mine + "help").open = true;
+  }
+  if (/iPhone|iPad|Android/i.test(ua)) document.getElementById("alt").textContent = "VibeCheck is for computers. Open this page on a Windows PC or a Mac.";
+</script>
+</body>
+</html>

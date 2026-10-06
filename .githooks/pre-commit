@@ -1,0 +1,34 @@
+#!/bin/sh
+# Bump the patch number of the project version on every commit, so each commit ships a new
+# version (it is shown in the window title). To bump the minor or major number instead, edit
+# the version yourself and stage it; this hook then leaves it alone for that commit.
+#
+# Enable once per clone:  git config core.hooksPath .githooks
+
+file="CMakeLists.txt"
+git cat-file -e :"$file" 2>/dev/null || exit 0
+
+version_of() {
+  perl -ne 'print $1 if /project\(VibeCheck VERSION (\d+\.\d+\.\d+)/'
+}
+
+staged=$(git show :"$file" | version_of)
+[ -n "$staged" ] || exit 0
+
+# A different version is already staged by hand: keep it.
+committed=$(git show HEAD:"$file" 2>/dev/null | version_of)
+if [ -n "$committed" ] && [ "$committed" != "$staged" ]; then
+  exit 0
+fi
+
+bump='s/(project\(VibeCheck VERSION )(\d+)\.(\d+)\.(\d+)/$1.$2.".".$3.".".($4+1)/e'
+
+# Bump the staged copy directly, so unstaged edits to the file stay out of this commit.
+blob=$(git show :"$file" | perl -0pe "$bump" | git hash-object -w --stdin) || exit 1
+mode=$(git ls-files -s -- "$file" | cut -d' ' -f1)
+git update-index --cacheinfo "$mode,$blob,$file" || exit 1
+
+# Keep the working copy in step so the next commit starts from the new number.
+perl -0pi -e "$bump" "$file"
+
+echo "Version bumped to v$(git show :"$file" | version_of)"

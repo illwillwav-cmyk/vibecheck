@@ -1,0 +1,166 @@
+name: Build and release
+
+# What this does
+#   - Every push to main and every pull request: builds the Windows and Mac installers and runs the
+#     self-test. The installers are kept for a few weeks as downloadable "artifacts" on the run.
+#   - Pushing a version tag (v0.6.0): does the same, then publishes a Release with both installers
+#     under fixed file names, plus latest.json, which running copies of the app read to tell people
+#     an update exists. The installers' download links never change from one version to the next.
+#   - "Run workflow" button: builds on demand.
+#
+# Release with:  installer/release.sh 0.6.0
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write   # lets a tag build create its release
+
+env:
+  # Baked into the app so it can find news of a newer version. A fixed address that always points at
+  # the newest release's latest.json.
+  UPDATE_URL: https://github.com/${{ github.repository }}/releases/latest/download/latest.json
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: .cpm-cache
+          key: cpm-juce-win-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
+
+      - name: Configure
+        shell: pwsh
+        run: cmake -S . -B build-win -G "Visual Studio 17 2022" -A x64 "-DVIBECHECK_UPDATE_URL=$env:UPDATE_URL"
+
+      - name: Build
+        shell: pwsh
+        run: cmake --build build-win --config Release --parallel
+
+      - name: Self-test
+        shell: pwsh
+        run: |
+          & .\build-win\VibeCheck_artefacts\Release\VibeCheck.exe --selftest
+          if ($LASTEXITCODE -ne 0) { throw "self-test failed" }
+
+      - name: Make sure Inno Setup is installed
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+
+      - name: Package (installer, portable zip, checksums)
+        shell: pwsh
+        run: ./installer/windows/build_windows.ps1 -SkipBuild
+        env:
+          # Optional: add these as repository secrets to sign the installer. Without them it is unsigned.
+          SIGN_PFX: ${{ secrets.WINDOWS_SIGN_PFX_PATH }}
+          SIGN_PASSWORD: ${{ secrets.WINDOWS_SIGN_PASSWORD }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VibeCheck-Windows
+          path: |
+            dist/VibeCheck-*-Windows-Setup.exe
+            dist/VibeCheck-*-Windows-x64.zip
+          if-no-files-found: error
+
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: .cpm-cache
+          key: cpm-juce-mac-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
+
+      - name: Tools
+        run: brew list ninja >/dev/null 2>&1 || brew install ninja
+
+      - name: "Build and package (universal, Apple silicon and Intel)"
+        run: |
+          UNIVERSAL=1 DMG_LAYOUT=0 CMAKE_EXTRA_ARGS="-DVIBECHECK_UPDATE_URL=$UPDATE_URL" installer/build_installer.sh
+
+      - name: Self-test
+        run: build-release/VibeCheck_artefacts/Release/VibeCheck.app/Contents/MacOS/VibeCheck --selftest
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VibeCheck-macOS
+          path: |
+            dist/VibeCheck-*.dmg
+            dist/VibeCheck-*.pkg
+          if-no-files-found: error
+
+  release:
+    # Only for a version tag, and only once both installers built.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "The tag must match the version in CMakeLists.txt"
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          have=$(perl -ne 'print $1 if /project\(VibeCheck VERSION (\d+\.\d+\.\d+)/' CMakeLists.txt)
+          if [ "$tag" != "$have" ]; then
+            echo "::error::Tag is v$tag but CMakeLists.txt says $have. Use installer/release.sh so they agree."
+            exit 1
+          fi
+          echo "VERSION=$have" >> "$GITHUB_ENV"
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: parts
+          merge-multiple: true
+
+      - name: Name the files, write checksums and latest.json
+        run: |
+          mkdir release && cd release
+          # Versioned copies, for people who want a specific build ...
+          cp ../parts/VibeCheck-${VERSION}-Windows-Setup.exe .
+          cp ../parts/VibeCheck-${VERSION}-Windows-x64.zip .
+          cp ../parts/VibeCheck-${VERSION}.dmg .
+          cp ../parts/VibeCheck-${VERSION}.pkg .
+          # ... and fixed names, so a link in an email or on a web page never goes stale.
+          cp ../parts/VibeCheck-${VERSION}-Windows-Setup.exe VibeCheck-Windows-Setup.exe
+          cp ../parts/VibeCheck-${VERSION}-Windows-x64.zip   VibeCheck-Windows-portable.zip
+          cp ../parts/VibeCheck-${VERSION}.dmg               VibeCheck-macOS.dmg
+          cp ../parts/VibeCheck-${VERSION}.pkg               VibeCheck-macOS.pkg
+          shasum -a 256 VibeCheck-* > SHA256SUMS.txt
+          cat > latest.json <<JSON
+          {
+            "version": "${VERSION}",
+            "page": "https://github.com/${GITHUB_REPOSITORY}/releases/latest",
+            "released": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          JSON
+          ls -l
+
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: VibeCheck ${{ env.VERSION }}
+          generate_release_notes: true
+          body: |
+            ## Download
+
+            | | |
+            |---|---|
+            | **Windows** | [VibeCheck-Windows-Setup.exe](https://github.com/${{ github.repository }}/releases/latest/download/VibeCheck-Windows-Setup.exe) (or the [portable zip](https://github.com/${{ github.repository }}/releases/latest/download/VibeCheck-Windows-portable.zip)) |
+            | **Mac** | [VibeCheck-macOS.dmg](https://github.com/${{ github.repository }}/releases/latest/download/VibeCheck-macOS.dmg) (Apple silicon and Intel) |
+
+            **First time you open it:** these installers are not signed with a paid certificate.
+            Windows shows "Windows protected your PC": click **More info**, then **Run anyway**.
+            On a Mac, drag VibeCheck to Applications, then right-click it and choose **Open** (or System Settings, Privacy & Security, **Open Anyway**).
+          files: |
+            release/*

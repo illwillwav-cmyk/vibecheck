@@ -1,0 +1,9 @@
+#!/bin/sh
+# Runs as root after the app has been copied into /Applications.
+APP="/Applications/VibeCheck.app"
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+
+# Tell Launch Services about the new app so Spotlight and Open With find it straight away.
+[ -x "$LSREGISTER" ] && "$LSREGISTER" -f "$APP" >/dev/null 2>&1
+
+exit 0
