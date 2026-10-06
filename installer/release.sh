@@ -30,8 +30,14 @@ echo "Releasing $new (was $current), pushing to \"$remote\""
 
 perl -pi -e "s/(project\(VibeCheck VERSION )\d+\.\d+\.\d+/\${1}$new/" CMakeLists.txt
 git add CMakeLists.txt
-# The pre-commit hook leaves a version that has been set by hand alone.
-git commit -q -m "Release $new" --allow-empty
+
+# Commit only if the version actually changed. --no-verify skips the pre-commit hook, which would
+# otherwise bump the version again and leave the tag disagreeing with CMakeLists.txt.
+if git diff --cached --quiet; then
+  echo "CMakeLists.txt already says $new; tagging the current commit."
+else
+  git commit -q --no-verify -m "Release $new"
+fi
 git tag -a "v$new" -m "VibeCheck $new"
 git push "$remote" HEAD "v$new"
 
