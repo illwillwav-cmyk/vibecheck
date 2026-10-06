@@ -83,6 +83,8 @@ New-Item -ItemType Directory -Force -Path $stage | Out-Null
 Copy-Item $exe $stage
 Copy-Item (Join-Path $PSScriptRoot "vibecheck.cmd") $stage
 Copy-Item (Join-Path $PSScriptRoot "README-Windows.txt") $stage
+$manual = Join-Path (Split-Path $exe) "VibeCheck Manual.pdf"
+if (Test-Path $manual) { Copy-Item $manual $stage } else { Write-Warning "No manual beside the executable; the installer and zip will not include one." }
 $zip = Join-Path $dist "VibeCheck-$version-Windows-x64.zip"
 Remove-Item $zip -ErrorAction SilentlyContinue
 Compress-Archive -Path $stage -DestinationPath $zip

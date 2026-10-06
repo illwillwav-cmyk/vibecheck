@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VibeCheck Manual</title>
+<meta name="description" content="How to use VibeCheck, read its results and compare plugins.">
+<style>
+  /* One source for the screen and for the PDF that ships in the installers.
+     Regenerate the PDF with docs/make_manual.sh after editing. */
+  :root {
+    --paper: #f6f4ef; --card: #fffefb; --ink: #1d1c19; --muted: #55534d; --faint: #85827a;
+    --line: #d9d5cb; --stone: #4a4943; --slate: #456273; --wash: #ece9e1;
+    --good: #1f7a55; --warn: #9a6a10; --bad: #b0392f;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 10.6pt/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 40px 22px 80px; }
+  h1, h2, h3 { line-height: 1.15; letter-spacing: -0.012em; text-wrap: balance; }
+  h1 { font-size: 30pt; margin: 0 0 8px; }
+  h2 { font-size: 19pt; margin: 0 0 10px; padding-top: 6px; }
+  h3 { font-size: 12.5pt; margin: 22px 0 6px; }
+  p { margin: 0 0 10px; orphans: 3; widows: 3; }
+  ul, ol { margin: 0 0 10px; padding-left: 1.25em; }
+  li { margin: 3px 0; }
+  a { color: var(--slate); }
+  strong { font-weight: 650; }
+  .lede { font-size: 12.5pt; color: var(--muted); max-width: 36em; }
+  .eyebrow { font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.16em; color: var(--faint); font-weight: 650; margin: 0 0 6px; }
+  section { margin-top: 44px; }
+  .num { color: var(--faint); font-weight: 500; margin-right: 0.4em; font-variant-numeric: tabular-nums; }
+
+  /* Cover */
+  .cover { min-height: 60vh; display: flex; flex-direction: column; justify-content: center; padding: 40px 0 20px; }
+  .cover svg { width: 108px; height: 108px; margin-bottom: 30px; }
+  .cover h1 { font-size: 44pt; letter-spacing: -0.03em; }
+  .cover .sub { font-size: 15pt; color: var(--muted); margin: 0 0 30px; max-width: 24em; }
+  .cover .meta { font-size: 9.5pt; color: var(--faint); }
+
+  /* Contents */
+  .toc { list-style: none; padding: 0; margin: 0; columns: 2; column-gap: 34px; }
+  .toc li { break-inside: avoid; padding: 5px 0; border-bottom: 1px solid var(--line); }
+  .toc a { color: var(--ink); text-decoration: none; display: flex; gap: 8px; }
+  .toc .n { color: var(--faint); width: 1.6em; font-variant-numeric: tabular-nums; }
+
+  /* Figures */
+  figure { margin: 16px 0 18px; break-inside: avoid; }
+  figure img { display: block; width: 100%; height: auto; border-radius: 9px; border: 1px solid #2b2a27; }
+  figure.narrow img { width: 46%; }
+  figcaption { font-size: 9pt; color: var(--faint); margin-top: 6px; }
+  .side { display: grid; grid-template-columns: 0.82fr 1fr; gap: 20px; align-items: start; break-inside: avoid; }
+  .side figure { margin: 4px 0 0; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin: 10px 0 16px; font-size: 9.6pt; }
+  tr { break-inside: avoid; }
+  thead, tr:first-child { break-after: avoid; }
+  th { text-align: left; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.1em; color: var(--faint); font-weight: 650; padding: 6px 8px 6px 0; border-bottom: 1.5px solid var(--ink); }
+  td { padding: 7px 8px 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td:first-child { font-weight: 600; white-space: nowrap; }
+  td.wrap:first-child { white-space: normal; }
+  .tight td:first-child { width: 30%; }
+
+  /* Callouts */
+  .note, .warn, .tip { border-radius: 9px; padding: 11px 14px; margin: 14px 0; break-inside: avoid; border: 1px solid var(--line); background: var(--card); }
+  .note b:first-child, .warn b:first-child, .tip b:first-child { display: block; font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 3px; }
+  .warn { border-color: #e2c9c5; background: #fbf1ef; } .warn b:first-child { color: var(--bad); }
+  .tip  { border-color: #cfdcd4; background: #f1f7f3; } .tip b:first-child { color: var(--good); }
+  .note b:first-child { color: var(--slate); }
+
+  .pill { display: inline-block; font-size: 8.6pt; font-weight: 650; padding: 1px 8px; border-radius: 99px; border: 1px solid; white-space: nowrap; }
+  .pill.g { color: var(--good); border-color: #a9cdbb; background: #edf6f1; }
+  .pill.y { color: var(--warn); border-color: #dcc79b; background: #faf4e4; }
+  .pill.o { color: #a4531c; border-color: #e2bfa3; background: #fbf0e6; }
+  .pill.r { color: var(--bad); border-color: #e0b5b0; background: #fbeeec; }
+  kbd { font: 8.8pt ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--wash); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; white-space: nowrap; }
+  code { font: 9pt ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--wash); border-radius: 4px; padding: 1px 5px; }
+  pre { font: 8.8pt/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--wash); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 8px 0 14px; break-inside: avoid; }
+  .steps { counter-reset: s; list-style: none; padding: 0; }
+  .steps li { counter-increment: s; position: relative; padding-left: 30px; margin: 7px 0; }
+  .steps li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--stone); color: #fff; font-size: 8.6pt; font-weight: 650; display: grid; place-items: center; }
+  .recipe { border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 10px 15px; margin: 9px 0; break-inside: avoid; }
+  .recipe h3 { margin: 0 0 4px; font-size: 11.5pt; }
+  .recipe li { margin: 2px 0; }
+  .recipe p:last-child, .recipe ol:last-child { margin-bottom: 0; }
+  footer { margin-top: 50px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 9pt; color: var(--faint); }
+
+  @media (max-width: 620px) { .side { grid-template-columns: 1fr; } .toc { columns: 1; } figure.narrow img { width: 80%; } }
+
+  @page { size: Letter; margin: 17mm 17mm 18mm; }
+  @media print {
+    body { background: #fff; font-size: 10.2pt; }
+    main { max-width: none; padding: 0; }
+    .cover { min-height: 232mm; page-break-after: always; }
+    section { margin-top: 0; page-break-before: always; }
+    section.flow { page-break-before: auto; margin-top: 26px; }
+    h2, h3 { break-after: avoid; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+<div class="cover">
+  <svg viewBox="0 0 1024 1024" role="img" aria-label="VibeCheck">
+    <rect width="1024" height="1024" rx="230" fill="#1b1a18"/>
+    <defs><linearGradient id="g" gradientUnits="userSpaceOnUse" x1="200" y1="0" x2="824" y2="0"><stop offset="0" stop-color="#e6e2d6"/><stop offset="1" stop-color="#9ab4c2"/></linearGradient></defs>
+    <g fill="url(#g)">
+      <rect x="212" y="238" width="62" height="330" rx="31"/><rect x="302" y="350" width="62" height="279" rx="31"/>
+      <rect x="392" y="462" width="62" height="228" rx="31"/><rect x="481" y="574" width="62" height="177" rx="31"/>
+      <rect x="571" y="462" width="62" height="228" rx="31"/><rect x="660" y="350" width="62" height="279" rx="31"/>
+      <rect x="750" y="238" width="62" height="330" rx="31"/>
+    </g>
+  </svg>
+  <p class="eyebrow">User manual</p>
+  <h1>VibeCheck</h1>
+  <p class="sub">How to measure a plugin, read what the numbers mean, and compare two plugins fairly.</p>
+  <p class="meta">For VibeCheck 0.5 on macOS and Windows &middot; Make Believe Studios</p>
+</div>
+
+<section class="flow" id="contents">
+  <p class="eyebrow">Contents</p>
+  <ol class="toc">
+    <li><a href="#what"><span class="n">1</span>What VibeCheck is</a></li>
+    <li><a href="#start"><span class="n">2</span>Getting started</a></li>
+    <li><a href="#window"><span class="n">3</span>Finding your way around</a></li>
+    <li><a href="#analyzer"><span class="n">4</span>Graph Analyzer</a></li>
+    <li><a href="#reading"><span class="n">5</span>Reading the measurements</a></li>
+    <li><a href="#health"><span class="n">6</span>Plugin Health</a></li>
+    <li><a href="#compare"><span class="n">7</span>A/B Compare</a></li>
+    <li><a href="#perf"><span class="n">8</span>Performance Profiler</a></li>
+    <li><a href="#ai"><span class="n">9</span>AI Check</a></li>
+    <li><a href="#recipes"><span class="n">10</span>Recipes</a></li>
+    <li><a href="#share"><span class="n">11</span>Sharing results</a></li>
+    <li><a href="#trouble"><span class="n">12</span>Troubleshooting</a></li>
+    <li><a href="#glossary"><span class="n">13</span>Glossary</a></li>
+  </ol>
+</section>
+
+<section class="flow" id="what">
+  <h2><span class="num">1</span>What VibeCheck is</h2>
+  <p class="lede">VibeCheck loads an audio plugin outside your DAW, plays test signals through it, and tells you what came back.</p>
+  <p>It answers five kinds of question:</p>
+  <table class="tight">
+    <tr><th>Question</th><th>Page</th></tr>
+    <tr><td class="wrap">What does this plugin do to the sound?</td><td>Graph Analyzer</td></tr>
+    <tr><td class="wrap">Is it safe to rely on in a session?</td><td>Plugin Health</td></tr>
+    <tr><td class="wrap">How do these two plugins differ?</td><td>A/B Compare</td></tr>
+    <tr><td class="wrap">How much CPU will it cost me?</td><td>Performance Profiler</td></tr>
+    <tr><td class="wrap">Does it look machine-generated?</td><td>AI Check</td></tr>
+  </table>
+  <div class="note"><b>What it is not</b>VibeCheck measures. It does not tell you whether a plugin sounds good, and a clean measurement is not the same as a useful tool. A saturator is supposed to distort; a vintage EQ is supposed to bend phase. Use the numbers to understand a plugin, then use your ears to decide.</div>
+</section>
+
+<section class="flow" id="start">
+  <h2><span class="num">2</span>Getting started</h2>
+
+  <h3>Install</h3>
+  <table>
+    <tr><th>System</th><th>What to do</th></tr>
+    <tr><td>Mac</td><td>Open the disk image and drag <strong>VibeCheck</strong> into <strong>Applications</strong>. Needs macOS 11 or later; works on Apple silicon and Intel.</td></tr>
+    <tr><td>Windows</td><td>Run <strong>VibeCheck-Windows-Setup.exe</strong>. Needs Windows 10 or 11, 64-bit. A portable zip is also available if you would rather not install.</td></tr>
+  </table>
+
+  <h3>The first time you open it</h3>
+  <p>The installers are not signed with a paid certificate, so your computer asks once before running them. Nothing is wrong with the file.</p>
+  <ul>
+    <li><strong>Mac:</strong> right-click (or Control-click) VibeCheck in Applications and choose <strong>Open</strong>, then <strong>Open</strong> again. If that option is missing, go to <strong>System Settings &rarr; Privacy &amp; Security</strong>, scroll down and click <strong>Open Anyway</strong>.</li>
+    <li><strong>Windows:</strong> when SmartScreen says "Windows protected your PC", click <strong>More info</strong>, then <strong>Run anyway</strong>.</li>
+  </ul>
+
+  <h3>Let it find your plugins</h3>
+  <p>On first launch VibeCheck scans the standard plugin folders. The pill at the top right shows progress and ends on <strong>Library up to date</strong>. Scanning happens in a separate process, so a plugin that crashes while being scanned cannot take VibeCheck down; it is listed as skipped instead.</p>
+  <table>
+    <tr><th>System</th><th>Formats</th><th>Where it looks</th></tr>
+    <tr><td>Mac</td><td>AudioUnit, VST3</td><td><code>/Library/Audio/Plug-Ins</code> and the same folder in your home Library</td></tr>
+    <tr><td>Windows</td><td>VST3</td><td><code>C:\Program Files\Common Files\VST3</code></td></tr>
+  </table>
+  <div class="note"><b>Copy-protected plugins</b>Plugins that need a licence dongle, an activation or special hardware may refuse to load outside a DAW, or load but pass no audio. VibeCheck reports that instead of guessing.</div>
+</section>
+
+<section class="flow" id="window">
+  <h2><span class="num">3</span>Finding your way around</h2>
+  <p>The rail on the left switches between six pages. Each page works the same way: choose a plugin, press the one large button, read the result.</p>
+  <table>
+    <tr><th>Page</th><th>Shortcut</th><th>What it is for</th></tr>
+    <tr><td>Plugin Manager</td><td><kbd>&#8984;1</kbd> / <kbd>Ctrl+1</kbd></td><td>Everything installed, by name, format and maker</td></tr>
+    <tr><td>Graph Analyzer</td><td><kbd>&#8984;2</kbd> / <kbd>Ctrl+2</kbd></td><td>Measure one plugin in detail</td></tr>
+    <tr><td>Plugin Health</td><td><kbd>&#8984;3</kbd> / <kbd>Ctrl+3</kbd></td><td>Thirteen robustness checks</td></tr>
+    <tr><td>AI Check</td><td><kbd>&#8984;4</kbd> / <kbd>Ctrl+4</kbd></td><td>Signs of machine-generated code</td></tr>
+    <tr><td>A/B Compare</td><td><kbd>&#8984;5</kbd> / <kbd>Ctrl+5</kbd></td><td>Two plugins, same measurements, side by side</td></tr>
+    <tr><td>Performance Profiler</td><td><kbd>&#8984;6</kbd> / <kbd>Ctrl+6</kbd></td><td>CPU load, latency and memory</td></tr>
+  </table>
+
+  <h3>Choosing a plugin</h3>
+  <p>Every page has the same picker. Type in the <strong>Filter</strong> box to narrow the list by name, maker or format, pick the plugin from the menu, then press <strong>Load</strong>. The line beside the button confirms what loaded: its channels and how many parameters it has.</p>
+  <p>A plugin with both an AudioUnit and a VST3 version appears twice. They are separate builds and can measure differently, so check you picked the one you use.</p>
+
+  <h3>Around the edges</h3>
+  <ul>
+    <li><strong>Sun or moon button</strong> (top right): switches between the dark and light look. Your choice is remembered.</li>
+    <li><strong>Status pill</strong> (top right): what the library scan is doing.</li>
+    <li><strong>Manual</strong> (bottom of the rail): opens this document.</li>
+    <li><strong>Update button</strong> (bottom of the rail): appears only when a newer version exists. Click it to open the download page.</li>
+    <li><strong>Plugin Manager &rarr; Reset skipped</strong>: gives plugins that failed a scan another chance, for instance after you have activated them.</li>
+  </ul>
+  <figure>
+    <img src="manual-img/manager-tiles.jpg" alt="Plugin Manager summary tiles: plugins found, formats, manufacturers, skipped.">
+    <figcaption>Plugin Manager's summary. "Skipped" counts plugins that crashed or hung while being scanned.</figcaption>
+  </figure>
+</section>
+
+<section id="analyzer">
+  <h2><span class="num">4</span>Graph Analyzer</h2>
+  <p class="lede">Push test signals through a plugin and measure what comes back.</p>
+  <figure>
+    <img src="manual-img/analyzer.jpg" alt="Graph Analyzer with a distortion plugin measured: tiles, reading, and graphs.">
+    <figcaption>A distortion plugin, measured. Controls on the left, results on the right.</figcaption>
+  </figure>
+  <ol class="steps">
+    <li>Pick a plugin and press <strong>Load</strong>.</li>
+    <li>Set the plugin how you want it measured. <strong>Plugin UI</strong> opens the plugin's own window; <strong>Parameters</strong> opens a plain list of every control with a filter, a reset and a randomise button.</li>
+    <li>Press <strong>Run measurements</strong>. It takes a second or two.</li>
+    <li>Read the five tiles, then the <strong>Reading</strong> card, then the graphs. Scroll for more graphs.</li>
+  </ol>
+
+  <h3>The measurement settings</h3>
+  <table>
+    <tr><th>Control</th><th>What it does</th></tr>
+    <tr><td>Test tone</td><td>The frequency of the sine used for distortion, 1000 Hz unless you move it. Try 100 Hz on a bass processor or 5 kHz on a de-esser.</td></tr>
+    <tr><td>Buffer size</td><td>How many samples the plugin is handed at a time, like your DAW's buffer setting.</td></tr>
+    <tr><td>Sample rate</td><td>Measure at the rate you actually work at. Results can change with it.</td></tr>
+    <tr><td>Waveform shows</td><td>Which test signal the "Captured output" graph displays.</td></tr>
+    <tr><td class="wrap">Re-run when settings change</td><td>Measures again whenever you move a control, so you can watch a curve respond while you turn a knob.</td></tr>
+    <tr><td class="wrap">Also sweep distortion (slower)</td><td>Adds two graphs: distortion against level and distortion against frequency.</td></tr>
+  </table>
+
+  <h3>What it plays</h3>
+  <p>Five signals, one after another: a single click (for frequency response, phase and the tail), a pure tone (for distortion and gain), two tones at once at 60 Hz and 7 kHz (for intermodulation), a level ramp (for dynamics), and silence (for self-noise). A sixth, a tone at 9 kHz when working at 48 kHz, is there to expose aliasing.</p>
+
+  <h3>Instruments</h3>
+  <p>A synth makes no sound from audio input, so VibeCheck plays it a MIDI note instead and measures the note. The frequency response of an instrument is not meaningful in the same way; look at the spectrum, the noise and the tail.</p>
+
+  <h3>Keeping a result</h3>
+  <ul>
+    <li><strong>Copy report</strong> puts every number on the clipboard as text, ready to paste into a message or a note.</li>
+    <li><strong>Save image</strong> saves the results as a picture.</li>
+  </ul>
+</section>
+
+<section class="flow" id="reading">
+  <h2><span class="num">5</span>Reading the measurements</h2>
+  <p>The ranges below are rules of thumb for judging a plugin that is meant to be clean. For a plugin that is meant to add character, high numbers are the point.</p>
+
+  <h3>The five tiles</h3>
+  <table>
+    <tr><th>Tile</th><th>What it means</th><th>How to read it</th></tr>
+    <tr><td>THD</td><td>Total harmonic distortion: how much of the output is new overtones the input did not have. THD+N underneath includes noise too.</td><td>Under 0.01%: transparent. 0.01&ndash;0.1%: clean. 0.1&ndash;1%: audible colour. Over 1%: obvious saturation.</td></tr>
+    <tr><td>IMD</td><td>Intermodulation: new tones created when two notes play together. It is the harsher, less musical kind of distortion.</td><td>Read it like THD. A plugin with low THD but high IMD sounds clean on single notes and rough on chords.</td></tr>
+    <tr><td>Gain at 1 kHz</td><td>How much louder or quieter the plugin makes a mid-range tone.</td><td>0 dB is unity. Anything else matters when comparing: louder nearly always sounds "better".</td></tr>
+    <tr><td>Latency</td><td>The delay the plugin tells the host about, in milliseconds and samples.</td><td>0 is ideal for tracking. Larger values are normal for look-ahead limiters and linear-phase EQs; your DAW compensates.</td></tr>
+    <tr><td>Self-noise</td><td>What comes out when nothing goes in.</td><td>"Silent" or below &minus;120 dBFS: inaudible. Above &minus;90 dBFS: hiss you may hear when many instances stack up. Analog models often add noise on purpose.</td></tr>
+  </table>
+
+  <h3>The Reading card</h3>
+  <p>Each line is a plain-language summary of one family of measurements.</p>
+  <table>
+    <tr><th>Line</th><th>What it tells you</th></tr>
+    <tr><td>Response</td><td>The overall tone: flat, or rolling off the lows or highs, and from where. "Flat within 0.1 dB from 40 Hz to 16 kHz" is a plugin that does not change tone at its current settings.</td></tr>
+    <tr><td>Distortion</td><td>The character of the overtones. <strong>Even-order</strong> (H2, H4) reads as warm and tube-like. <strong>Odd-order</strong> (H3, H5) reads as harder and more aggressive. H2 and H3 are given in dBc: decibels below the tone itself.</td></tr>
+    <tr><td>Dynamics</td><td>Whether gain changes with level. "Linear" means it does not. Otherwise you will see "Compressing from about &minus;18 dB in, roughly 4:1", "Limiting", or "Soft saturation".</td></tr>
+    <tr><td>Aliasing</td><td>False tones caused by distortion folding back from above the audible range. See the scale below.</td></tr>
+    <tr><td>Tail</td><td>How long the plugin keeps sounding after the input stops. Milliseconds for an EQ, seconds for a reverb.</td></tr>
+    <tr><td>Output level</td><td>Peak and average (RMS) level of the output, and the gap between them (crest).</td></tr>
+  </table>
+
+  <h3>Aliasing scale</h3>
+  <table>
+    <tr><th>Reading</th><th>Level</th><th>Meaning</th></tr>
+    <tr><td><span class="pill g">Clean</span></td><td>below &minus;100 dBc</td><td>Nothing measurable that is not a harmonic.</td></tr>
+    <tr><td><span class="pill g">Very low</span></td><td>&minus;100 to &minus;80</td><td>Inaudible in practice.</td></tr>
+    <tr><td><span class="pill y">Low</span></td><td>&minus;80 to &minus;60</td><td>Faint, rarely audible.</td></tr>
+    <tr><td><span class="pill o">Audible</span></td><td>&minus;60 to &minus;40</td><td>Can be heard on bright material such as cymbals and vocals.</td></tr>
+    <tr><td><span class="pill r">Strong</span></td><td>above &minus;40</td><td>The plugin aliases badly. Expect a gritty, digital edge when driven. Oversampling, if the plugin offers it, is the cure.</td></tr>
+  </table>
+
+  <h3>The graphs</h3>
+  <p>Hover over any graph to read exact values. Frequency runs left to right on every graph that has one, from 20 Hz to 20 kHz.</p>
+  <table>
+    <tr><th>Graph</th><th>How to read it</th></tr>
+    <tr><td>Magnitude response</td><td>Level against frequency: the EQ curve. A flat line means no tonal change. The menu smooths the curve (1/6 octave is a good default); choose less smoothing to see fine ripples.</td></tr>
+    <tr><td>Phase response</td><td>How much each frequency is delayed relative to the others. A straight or gently sloping line is benign. Sharp bends near a filter are normal for analog-style EQs and are part of their sound. A flat line with latency means linear phase.</td></tr>
+    <tr><td>Distortion spectrum</td><td>The output of the pure tone, as a spectrum. The tallest spike is the tone. Evenly spaced spikes to its right are harmonics. The dashed trace shows intermodulation products. Anything that is not on the regular grid is aliasing or noise.</td></tr>
+    <tr><td>Transfer curve</td><td>Level in against level out. A straight diagonal is linear. A line that bends over to the right is compression or limiting. Two traces, getting louder and getting quieter, that do not overlap show the plugin reacting to history, as compressors do.</td></tr>
+    <tr><td class="wrap">Distortion against level</td><td>THD as the input gets louder. Flat and low: clean at any level. Rising to the right: it saturates when pushed, which is how to find the sweet spot of a saturator.</td></tr>
+    <tr><td class="wrap">Distortion against frequency</td><td>THD across the spectrum. Rising toward the lows is common in transformer and tape models; rising toward the highs often points at aliasing.</td></tr>
+    <tr><td>Captured output</td><td>The actual waveform that came out, for the signal chosen under "Waveform shows".</td></tr>
+  </table>
+  <div class="tip"><b>Measure it the way you use it</b>Every number depends on the plugin's settings. A compressor at its default threshold may look perfectly linear because the test signal never reaches it. Set the plugin up as you would in a mix, then measure.</div>
+</section>
+
+<section id="health">
+  <h2><span class="num">6</span>Plugin Health</h2>
+  <p class="lede">Robustness checks: does the plugin behave, whatever the session throws at it?</p>
+  <figure>
+    <img src="manual-img/health.jpg" alt="Plugin Health showing a healthy plugin: 12 passed, 0 warnings, 0 failed, 1 note.">
+    <figcaption>Each check says what it found and, in grey, why it matters.</figcaption>
+  </figure>
+  <p>Load a plugin and press <strong>Run health check</strong>. The verdict at the top is one of:</p>
+  <table>
+    <tr><th>Verdict</th><th>Meaning</th></tr>
+    <tr><td><span class="pill g">Healthy</span></td><td>Nothing failed, and at most one warning.</td></tr>
+    <tr><td><span class="pill y">Mostly healthy</span></td><td>Nothing failed, but more than one thing deserves a look.</td></tr>
+    <tr><td><span class="pill r">Has problems</span></td><td>At least one check failed in a way a user could hit.</td></tr>
+  </table>
+  <p>The four counts beside it are <strong>Passed</strong>, <strong>Warnings</strong> (works, but look), <strong>Failed</strong> (broken) and <strong>Notes</strong> (facts, not judgements).</p>
+
+  <h3>What is checked</h3>
+  <table>
+    <tr><th>Check</th><th>Why a failure matters to you</th></tr>
+    <tr><td class="wrap">Starts up and renders</td><td>If it cannot process audio at ordinary settings, nothing else matters.</td></tr>
+    <tr><td class="wrap">Silent when nothing is playing</td><td>Noise with no input adds hiss or hum to every project it is in.</td></tr>
+    <tr><td class="wrap">Never produces invalid numbers</td><td>One bad value can silence a whole mix or blow up every plugin after it.</td></tr>
+    <tr><td class="wrap">Gives the same result every time</td><td>If two runs differ, your bounce will not match what you heard.</td></tr>
+    <tr><td class="wrap">Same sound at any buffer size</td><td>A plugin that changes with buffer size has a bug that shows only on some setups.</td></tr>
+    <tr><td class="wrap">Works at every sample rate</td><td>From 8 to 192 kHz. Breaking at one rate breaks those sessions.</td></tr>
+    <tr><td class="wrap">Reports its latency honestly</td><td>A wrong figure leaves that track audibly out of time.</td></tr>
+    <tr><td class="wrap">No slowdown on near-silent input</td><td>Some plugins become many times slower in quiet passages and reverb tails.</td></tr>
+    <tr><td class="wrap">Channel layouts</td><td>Mono tracks, stereo buses and surround each ask for a different layout.</td></tr>
+    <tr><td class="wrap">Decays instead of ringing forever</td><td>A tail that never dies keeps the CPU busy and can build into feedback.</td></tr>
+    <tr><td class="wrap">Parameters are well formed</td><td>Duplicate or empty names make automation and MIDI mapping confusing.</td></tr>
+    <tr><td class="wrap">Saves and restores its settings</td><td>When a project reopens, the plugin must come back as you left it. This is the most common real-world bug.</td></tr>
+    <tr><td class="wrap">Survives random settings</td><td>Eighteen extreme and random settings. It should stay sane with every control at once on minimum, maximum or anything between.</td></tr>
+  </table>
+  <p>Instruments get one more: <strong>Plays notes and lets go of them</strong>.</p>
+  <div class="note"><b>Good to know</b>These tests move the plugin's controls while they run, then put them back. They measure robustness, not sound. Plugins run inside VibeCheck here, so one that crashes outright will close the app; reopen it and the rest of your library is unaffected.</div>
+  <p><strong>Copy report</strong> gives you the full list as text. If a plugin you paid for fails a check, that report is exactly what its developer needs.</p>
+</section>
+
+<section id="compare">
+  <h2><span class="num">7</span>A/B Compare</h2>
+  <p class="lede">Lay two plugins over the same measurements and see precisely where they differ.</p>
+  <figure>
+    <img src="manual-img/compare.jpg" alt="A/B Compare scorecard with two plugins side by side and a difference column.">
+    <figcaption>The scorecard. The better value in each row is shown in green, and the last column says by how much.</figcaption>
+  </figure>
+  <ol class="steps">
+    <li>Choose a plugin under <strong>Plugin A</strong> and press <strong>Load A</strong>.</li>
+    <li>Choose another under <strong>Plugin B</strong> and press <strong>Load B</strong>.</li>
+    <li>Press <strong>Compare</strong>. Both get exactly the same test signals at the same settings.</li>
+    <li>Read the scorecard, then scroll to the four overlaid graphs.</li>
+  </ol>
+
+  <h3>The scorecard</h3>
+  <table>
+    <tr><th>Row</th><th>What is compared</th><th>Better is</th></tr>
+    <tr><td>THD at 1 kHz</td><td>Harmonic distortion on a pure tone</td><td>Lower, if you want clean</td></tr>
+    <tr><td>Intermodulation</td><td>Distortion with two tones playing</td><td>Lower</td></tr>
+    <tr><td>Gain at 1 kHz</td><td>Level change through each plugin</td><td>Neither; it tells you to level-match</td></tr>
+    <tr><td>Tone</td><td>The shape of each frequency response, in words</td><td>Depends on what you want</td></tr>
+    <tr><td>Harmonic character</td><td>Even-order (warm) or odd-order (hard)</td><td>A matter of taste</td></tr>
+    <tr><td>Latency</td><td>Reported delay</td><td>Lower</td></tr>
+    <tr><td>Speed</td><td>How many times faster than real time each one runs</td><td>Higher means lighter on the CPU</td></tr>
+    <tr><td>Self-noise</td><td>Output with no input</td><td>Lower</td></tr>
+    <tr><td>Dynamics</td><td>Linear, compressing or limiting</td><td>Depends on the job</td></tr>
+  </table>
+  <p>A value is only highlighted where one direction is clearly better. Tone and character are never highlighted, because neither is "right".</p>
+
+  <h3>The overlaid graphs</h3>
+  <p>Magnitude response, phase response, distortion spectrum and transfer curve, each with both plugins drawn together. <strong>A is the solid line and B is the dashed line</strong>, in the same colours as the dots in the scorecard header. Where the two lines sit on top of each other, the plugins do the same thing; where they part, they do not.</p>
+
+  <h3>Making it a fair comparison</h3>
+  <ul>
+    <li><strong>Match the settings first.</strong> Two EQs at their defaults are both flat and will look identical. Set both to the same boost at the same frequency, then compare.</li>
+    <li><strong>Mind the gain row.</strong> If B is 2 dB quieter, it will sound duller in a listening test for that reason alone. Match the output levels before trusting your ears.</li>
+    <li><strong>Compare like with like.</strong> Use the same format for both where you can, and plugins that do the same job.</li>
+    <li><strong>Small differences are noise.</strong> THD of 0.002% against 0.003% is the same result. Look for differences of a factor of two or more, or a decibel or more in level.</li>
+  </ul>
+  <div class="tip"><b>Does the expensive one do anything the free one does not?</b>Set both to the same curve and compare. If the magnitude and phase lines overlap and the distortion spectra match, they are the same processing, and you can choose on price, interface and CPU.</div>
+</section>
+
+<section id="perf">
+  <h2><span class="num">8</span>Performance Profiler</h2>
+  <p class="lede">How much of your computer a plugin uses, and how many copies you can run.</p>
+  <figure>
+    <img src="manual-img/perf.jpg" alt="Performance Profiler: headline, five tiles, CPU heat map by sample rate and buffer size, load curve and latency.">
+    <figcaption>The headline answers the question in one sentence. The grid shows every setup.</figcaption>
+  </figure>
+  <ol class="steps">
+    <li><strong>Choose a plugin</strong> and load it.</li>
+    <li><strong>Describe your session</strong>: your sample rate, your DAW's buffer size, and how many copies you expect to use.</li>
+    <li><strong>Run it</strong> with <strong>Run benchmark</strong>. It tests three sample rates and six buffer sizes.</li>
+  </ol>
+  <p>After the first run you can change the session settings freely; the answer updates without measuring again.</p>
+
+  <h3>Reading the result</h3>
+  <table>
+    <tr><th>Part</th><th>What it tells you</th></tr>
+    <tr><td>Headline</td><td>The share of one CPU core a single copy uses at your settings, rated <span class="pill g">Light</span> (under 10%), <span class="pill y">Moderate</span> (10&ndash;30%) or <span class="pill r">Heavy</span> (over 30%).</td></tr>
+    <tr><td>Per instance</td><td>One copy's load, as a percentage of one core.</td></tr>
+    <tr><td>Your session</td><td>The load of all the copies you said you would use.</td></tr>
+    <tr><td>Fit per core</td><td>How many copies fit on one core while staying under 70%. The 70% line leaves headroom so a busy moment does not cause a dropout.</td></tr>
+    <tr><td>Latency</td><td>The delay the plugin reports. "None" means it adds no delay.</td></tr>
+    <tr><td>Memory</td><td>Roughly how much memory loading the plugin added.</td></tr>
+    <tr><td class="wrap">CPU load per instance</td><td>The grid: one cell for each sample rate and buffer size. Greener is lighter. Click a cell to make that your session. A yellow dot marks a reading that varied between passes; treat it as approximate.</td></tr>
+    <tr><td class="wrap">Load as instances grow</td><td>The line climbs as you add copies. Where it crosses the dashed 70% line is your practical limit; the 100% line is where one core is full.</td></tr>
+    <tr><td>Latency table</td><td>Reported delay at each sample rate, in samples and milliseconds.</td></tr>
+  </table>
+  <div class="note"><b>About the numbers</b>These are measured on your computer, right now. Close other apps for steadier readings. Small buffers usually cost a little more per sample than large ones; a plugin that costs far more at 64 samples than at 1024 is doing heavy work on every buffer. Load roughly doubles from 48 to 96 kHz, because there is twice as much audio to process.</div>
+</section>
+
+<section id="ai">
+  <h2><span class="num">9</span>AI Check</h2>
+  <p class="lede">Reads each plugin's file for the marks that machine-generated projects tend to leave behind.</p>
+
+  <div class="warn"><b>Read this first</b>The score measures <em>template and boilerplate smells</em>, not who wrote the code. A careful person who started from a tutorial can score high. A model that was asked for polished, idiomatic code can score low. Treat a high score as a reason to look closer, never as proof, and do not publish it as an accusation.</div>
+
+  <figure>
+    <img src="manual-img/ai-tiles.jpg" alt="AI Check summary tiles: plugins weighed, read as machine-made, average vibe, unreadable.">
+    <figcaption>The whole library at a glance. "Unreadable" plugins are encrypted or copy-protected and are not judged at all.</figcaption>
+  </figure>
+
+  <p>The page weighs every plugin in the background and lists them. Click a column heading to sort; type in the search box to filter. Click a row to see the evidence.</p>
+  <table>
+    <tr><th>Column</th><th>Meaning</th></tr>
+    <tr><td>Marks</td><td>How many separate fingerprints were found.</td></tr>
+    <tr><td>Vibe</td><td>The score, 0 to 100. Higher means more fingerprints, weighted by how telling each one is.</td></tr>
+    <tr><td>Confidence</td><td>How much of the file could actually be read. Low confidence means a low score proves little.</td></tr>
+  </table>
+
+  <div class="side">
+    <div>
+      <h3>The score</h3>
+      <table>
+        <tr><th>Score</th><th>Verdict</th></tr>
+        <tr><td>0&ndash;9</td><td><span class="pill g">Looks hand-written</span></td></tr>
+        <tr><td>10&ndash;29</td><td><span class="pill y">Some template smell</span></td></tr>
+        <tr><td>30&ndash;54</td><td><span class="pill o">Substantial fingerprints</span></td></tr>
+        <tr><td>55&ndash;100</td><td><span class="pill r">Reads as machine-generated</span></td></tr>
+      </table>
+      <p><strong>Insufficient evidence</strong> appears instead of a score when the file is encrypted, copy-protected or otherwise unreadable. That is not a pass; it means nothing could be learned.</p>
+      <h3>Where the points come from</h3>
+      <p>The bars split the score into five families. They add up to the number in the gauge.</p>
+    </div>
+    <figure>
+      <img src="manual-img/ai-detail.jpg" alt="AI Check detail: gauge at 100 percent, confidence bar, summary, and points by family.">
+      <figcaption>The evidence panel for a deliberately generated test plugin.</figcaption>
+    </figure>
+  </div>
+
+  <table>
+    <tr><th>Family</th><th>What it looks for</th></tr>
+    <tr><td>Metadata</td><td>Identity nobody filled in: placeholder company names, default version numbers, template product codes.</td></tr>
+    <tr><td>Boilerplate</td><td>Starter-project scaffolding left untouched: default file and class names, tutorial parameter set-up, stock example controls. One is ordinary; several together are not.</td></tr>
+    <tr><td>DSP habits</td><td>Audio code written without regard for the audio thread.</td></tr>
+    <tr><td>Stray text</td><td>Words nobody meant to ship: chat-assistant phrases, or build paths through an AI tool's folder.</td></tr>
+    <tr><td>Behaviour</td><td>What the plugin does when it is actually run. Only filled in after a Deep check.</td></tr>
+  </table>
+  <p>Below the bars, every fingerprint is listed with the exact thing that was found and its points. Click one to see why it counts. Things that point the other way, such as a paid developer signature or the maker's own web address, are listed too but never subtract.</p>
+
+  <h3>Deep check</h3>
+  <p>The file can be made to look like anyone's work; the audio thread cannot hide how it behaves. Select a plugin and press <strong>Deep check</strong>. VibeCheck runs it for a few seconds in a separate process and measures:</p>
+  <ul>
+    <li><strong>Memory requests while processing audio.</strong> Well-made real-time code makes none. Asking for memory in every buffer is the strongest single sign of code written without audio experience. (Counted on macOS only.)</li>
+    <li><strong>CPU cost</strong> for what it does, <strong>uneven processing time</strong>, heavy work on <strong>every small buffer</strong>, and <strong>slowdown on near-silent input</strong>.</li>
+  </ul>
+  <p>The result is saved and added to the plugin's score in both the list and the panel. A plugin that needs hardware or a licence to run will time out and be reported as not measured.</p>
+
+  <h3>The other buttons</h3>
+  <ul>
+    <li><strong>Rescan</strong> weighs the library again. Results are remembered, so this is quick.</li>
+    <li><strong>Export</strong> saves every score to a file you can share. See section 11.</li>
+    <li><strong>Updates</strong> searches the web for a newer version of the selected plugin.</li>
+    <li><strong>Uninstall</strong> moves the selected plugin to the Trash (Recycle Bin on Windows) after asking. You can put it back.</li>
+  </ul>
+  <div class="note"><b>On Windows</b>Windows plugins carry less readable information than Mac ones, so expect "Insufficient evidence" more often and scores that lean on names and text rather than code habits.</div>
+</section>
+
+<section id="recipes">
+  <h2><span class="num">10</span>Recipes</h2>
+
+  <div class="recipe">
+    <h3>Can I trust this plugin in a real session?</h3>
+    <ol>
+      <li><strong>Plugin Health</strong> &rarr; Run health check. You want <span class="pill g">Healthy</span>.</li>
+      <li>Any failure on <em>Saves and restores its settings</em>, <em>Same sound at any buffer size</em> or <em>Reports its latency honestly</em> is a reason not to use it on paid work.</li>
+      <li><strong>Performance Profiler</strong> at your real buffer size, to check it fits.</li>
+    </ol>
+  </div>
+
+  <div class="recipe">
+    <h3>Are these two EQs really different?</h3>
+    <ol>
+      <li><strong>A/B Compare</strong>. Load both and set the same boost or cut on each.</li>
+      <li>Press Compare and look at the magnitude and phase graphs.</li>
+      <li>Lines that overlap mean the same processing. Differences in the phase graph, or in the distortion spectrum, are what "character" is made of.</li>
+    </ol>
+  </div>
+
+  <div class="recipe">
+    <h3>Where is this saturator's sweet spot?</h3>
+    <ol>
+      <li><strong>Graph Analyzer</strong>, with <em>Also sweep distortion</em> ticked.</li>
+      <li>Read <em>Distortion against level</em>: the level where the curve starts to climb is where it begins to work.</li>
+      <li>Check the <em>Distortion</em> line for even or odd character, and the <em>Aliasing</em> line. If aliasing reads Audible or Strong, try the plugin's oversampling setting and measure again.</li>
+    </ol>
+  </div>
+
+  <div class="recipe">
+    <h3>Which of two compressors is cheaper to run?</h3>
+    <ol>
+      <li><strong>A/B Compare</strong> for a quick answer: the <em>Speed</em> row.</li>
+      <li><strong>Performance Profiler</strong> on each for the detail: <em>Fit per core</em> at your buffer size.</li>
+    </ol>
+  </div>
+
+  <div class="recipe">
+    <h3>Why is my mix out of time after adding a plugin?</h3>
+    <ol>
+      <li><strong>Graph Analyzer</strong>: compare the <em>Latency</em> tile with the "Delay" figure under <em>Gain at 1 kHz</em>. They should agree.</li>
+      <li><strong>Plugin Health</strong>: <em>Reports its latency honestly</em> confirms it. If it fails, the plugin is delaying audio without telling your DAW.</li>
+    </ol>
+  </div>
+
+  <div class="recipe">
+    <h3>Does this new plugin look machine-generated?</h3>
+    <ol>
+      <li><strong>AI Check</strong>: find it in the list and click it.</li>
+      <li>Check <em>Confidence</em> first. If it is low, stop: there is not enough to go on.</li>
+      <li>Press <strong>Deep check</strong> and see whether <em>Behaviour</em> adds points.</li>
+      <li>Run <strong>Plugin Health</strong> as well. Whoever or whatever wrote it, a plugin that does not save its settings is the practical problem.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="flow" id="share">
+  <h2><span class="num">11</span>Sharing results</h2>
+  <h3>One measurement</h3>
+  <p><strong>Copy report</strong> (Graph Analyzer, Plugin Health) and <strong>Save image</strong> (Graph Analyzer) are the quickest ways to send someone what you found.</p>
+
+  <h3>Your whole library</h3>
+  <p>In <strong>AI Check</strong>, press <strong>Export</strong>. The file holds each plugin's name, maker, format, version, score and the fingerprints behind it, plus any Deep check numbers. It contains no file paths, no user name and nothing about your computer.</p>
+  <p>Exports from several people can be folded into one master list, in which the same plugin from different people becomes one row with the middle score, the range, and how many people reported it. That step is done from the command line.</p>
+
+  <h3>Command line</h3>
+  <p>For people who want to script it. On Windows use <code>vibecheck</code> if you ticked "Add to PATH" in the installer; on a Mac the installer package offers the same command.</p>
+<pre>vibecheck --health="Plugin Name"        run the health checks, print the result
+vibecheck --vibecheck="Plugin Name"     AI check on one plugin, with the evidence
+vibecheck --behaviour="Plugin Name"     the Deep check measurements
+vibecheck --analyze="Plugin Name"       measurements as text
+vibecheck --export=mine.json            weigh the whole library and save it
+vibecheck --merge=folder --out=all.csv  fold many exports into one list
+vibecheck --selftest                    check VibeCheck's own maths</pre>
+  <p>A path to a plugin file works anywhere a name does, so a plugin need not be installed to be examined. <code>--health</code> exits with an error code when a check fails, which makes it usable in a build script.</p>
+</section>
+
+<section class="flow" id="trouble">
+  <h2><span class="num">12</span>Troubleshooting</h2>
+  <table>
+    <tr><th>What you see</th><th>What to do</th></tr>
+    <tr><td class="wrap">A plugin is missing from the list</td><td>Check it is in a standard plugin folder, then relaunch so the library is checked again. On Windows only VST3 is supported.</td></tr>
+    <tr><td class="wrap">A plugin is listed as skipped</td><td>It crashed or hung while being scanned, often because it wanted a licence. Activate it, then use <strong>Plugin Manager &rarr; Reset skipped</strong>.</td></tr>
+    <tr><td class="wrap">A plugin loads but every measurement is silence</td><td>It is probably waiting for a licence or for hardware and is passing no audio. Open <strong>Plugin UI</strong> to see whether it is asking for something.</td></tr>
+    <tr><td class="wrap">A compressor measures as "Linear"</td><td>The test signal is not reaching its threshold. Lower the threshold, or raise the input gain, and measure again.</td></tr>
+    <tr><td class="wrap">Performance numbers change between runs</td><td>Other programs are competing for the CPU. Close them and run again. Cells with a yellow dot were noisy.</td></tr>
+    <tr><td class="wrap">Deep check "did not finish"</td><td>The plugin needs hardware or a licence to run, or it crashed. Its score stays as it was.</td></tr>
+    <tr><td class="wrap">AI Check says "Insufficient evidence"</td><td>The file is encrypted or copy-protected. This is expected for most big commercial plugins and is not a verdict.</td></tr>
+    <tr><td class="wrap">The Mac says the app cannot be opened</td><td>Right-click the app and choose Open, or use System Settings &rarr; Privacy &amp; Security &rarr; Open Anyway.</td></tr>
+    <tr><td class="wrap">VibeCheck closed during a health check</td><td>The plugin crashed and took the app with it. That is itself the finding. Reopen VibeCheck.</td></tr>
+  </table>
+
+  <h3>Uninstalling VibeCheck</h3>
+  <ul>
+    <li><strong>Mac:</strong> open the disk image and double-click <strong>Uninstall VibeCheck</strong>, or drag the app to the Trash.</li>
+    <li><strong>Windows:</strong> Settings &rarr; Apps &rarr; Installed apps &rarr; VibeCheck &rarr; Uninstall.</li>
+  </ul>
+</section>
+
+<section class="flow" id="glossary">
+  <h2><span class="num">13</span>Glossary</h2>
+  <table>
+    <tr><th>Term</th><th>Meaning</th></tr>
+    <tr><td>Aliasing</td><td>False tones that appear when distortion creates frequencies too high for the sample rate, which then fold back into the audible range.</td></tr>
+    <tr><td>Buffer size</td><td>How many samples the computer processes in one go. Smaller means less delay when playing, and more CPU.</td></tr>
+    <tr><td>dB</td><td>Decibel: a unit of relative level. +6 dB is roughly twice the amplitude.</td></tr>
+    <tr><td>dBFS</td><td>Level relative to the loudest a digital signal can be. 0 dBFS is the ceiling; everything else is negative.</td></tr>
+    <tr><td>dBc</td><td>Level relative to the test tone ("the carrier"). &minus;60 dBc is one thousandth of the tone's amplitude.</td></tr>
+    <tr><td>Denormals</td><td>Extremely small numbers that some processors handle very slowly, causing CPU spikes in near-silence.</td></tr>
+    <tr><td>Harmonics</td><td>Overtones at whole multiples of a note's frequency. H2 is twice the frequency, H3 three times.</td></tr>
+    <tr><td>IMD</td><td>Intermodulation distortion: tones created by two notes interacting, at frequencies that belong to neither.</td></tr>
+    <tr><td>Instance</td><td>One copy of a plugin in a session.</td></tr>
+    <tr><td>Latency</td><td>Delay added by a plugin. Hosts compensate for the amount the plugin reports.</td></tr>
+    <tr><td>Linear phase</td><td>Every frequency delayed by the same amount, at the cost of latency.</td></tr>
+    <tr><td>RMS</td><td>A measure of average level, closer to perceived loudness than the peak.</td></tr>
+    <tr><td>Sample rate</td><td>How many times per second audio is measured: 44.1, 48, 96 kHz and so on.</td></tr>
+    <tr><td>THD</td><td>Total harmonic distortion: the combined level of all the harmonics a plugin adds, as a percentage of the tone.</td></tr>
+    <tr><td>Unity gain</td><td>Output level equal to input level: 0 dB of change.</td></tr>
+  </table>
+  <footer>VibeCheck is made by Make Believe Studios. It checks once at launch whether a newer version exists by reading one small public file, and sends nothing about you or your plugins.</footer>
+</section>
+
+</main>
+</body>
+</html>

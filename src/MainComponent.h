@@ -59,6 +59,7 @@ private:
     std::array<std::unique_ptr<mbs::NavButton>, 6> nav;
     std::unique_ptr<ThemeToggle> themeToggle;
 
+    mbs::IconTextButton manualButton { "Manual", mbs::Icon::external };
     mbs::IconTextButton updateNotice { "Update available", mbs::Icon::sparkle };
     juce::String updatePage;
 

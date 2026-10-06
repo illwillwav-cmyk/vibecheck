@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 # The version below is bumped automatically by .githooks/pre-commit on every commit.
-project(VibeCheck VERSION 0.5.1 LANGUAGES C CXX)
+project(VibeCheck VERSION 0.5.2 LANGUAGES C CXX)
 
 # Windows: link the C++ runtime statically, so the app runs on a machine that has never had the
 # Visual C++ redistributable installed. Must be set before the target is created.
@@ -27,11 +27,21 @@ else()
     set(VIBECHECK_HOST_AU 0)
 endif()
 
+# Icons. On Windows JUCE builds the .ico from a PNG. On a Mac its own conversion is not used at all:
+# it produced an empty or single-size .icns, which macOS shows as a blank tile in the Dock. The real
+# multi-size .icns made by installer/make_assets.sh is copied into the bundle further down instead,
+# and the Info.plist is told its name here.
+if(APPLE)
+    set(VIBECHECK_ICON_ARGS PLIST_TO_MERGE
+        "<plist version=\"1.0\"><dict><key>CFBundleIconFile</key><string>VibeCheck</string></dict></plist>")
+else()
+    set(VIBECHECK_ICON_ARGS ICON_BIG "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon/icon_win_512.png")
+endif()
+
 juce_add_gui_app(VibeCheck
     PRODUCT_NAME            "VibeCheck"
     COMPANY_NAME            "William Wright"
-    ICON_MAC                "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon/VibeCheck.icns"
-    ICON_BIG                "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon/icon_win_512.png"
+    ${VIBECHECK_ICON_ARGS}
     BUNDLE_ID               "com.williamwright.vibecheck"
     VERSION                 ${PROJECT_VERSION}
     NEEDS_CURL              FALSE
@@ -102,6 +112,29 @@ target_sources(VibeCheck PRIVATE
     src/vibecheck/PluginLookup.cpp
     src/vibecheck/UpdateCheck.cpp
 )
+
+if(APPLE)
+    set(VIBECHECK_ICNS "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon/VibeCheck.icns")
+    target_sources(VibeCheck PRIVATE "${VIBECHECK_ICNS}")
+    set_source_files_properties("${VIBECHECK_ICNS}" PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
+endif()
+
+# The user manual ships with the app. docs/make_manual.sh writes the PDF from docs/manual.html.
+set(VIBECHECK_MANUAL_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/docs/VibeCheck-Manual.pdf")
+if(EXISTS "${VIBECHECK_MANUAL_SOURCE}")
+    set(VIBECHECK_MANUAL "${CMAKE_CURRENT_BINARY_DIR}/VibeCheck Manual.pdf")
+    configure_file("${VIBECHECK_MANUAL_SOURCE}" "${VIBECHECK_MANUAL}" COPYONLY)
+
+    if(APPLE)
+        # Inside the bundle, so it is covered by the signature and travels with the app.
+        target_sources(VibeCheck PRIVATE "${VIBECHECK_MANUAL}")
+        set_source_files_properties("${VIBECHECK_MANUAL}" PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
+    else()
+        # Beside the executable, where the installer and the portable zip pick it up.
+        add_custom_command(TARGET VibeCheck POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${VIBECHECK_MANUAL}" "$<TARGET_FILE_DIR:VibeCheck>/VibeCheck Manual.pdf")
+    endif()
+endif()
 
 target_include_directories(VibeCheck PRIVATE src)
 

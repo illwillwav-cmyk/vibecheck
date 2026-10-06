@@ -148,6 +148,7 @@ jobs:
           cp ../parts/VibeCheck-${VERSION}-Windows-x64.zip   VibeCheck-Windows-portable.zip
           cp ../parts/VibeCheck-${VERSION}.dmg               VibeCheck-macOS.dmg
           cp ../parts/VibeCheck-${VERSION}.pkg               VibeCheck-macOS.pkg
+          cp ../docs/VibeCheck-Manual.pdf VibeCheck-Manual.pdf
           shasum -a 256 VibeCheck-* > SHA256SUMS.txt
           cat > latest.json <<JSON
           {
@@ -170,6 +171,8 @@ jobs:
             |---|---|
             | **Windows** | [VibeCheck-Windows-Setup.exe](https://github.com/${{ github.repository }}/releases/latest/download/VibeCheck-Windows-Setup.exe) (or the [portable zip](https://github.com/${{ github.repository }}/releases/latest/download/VibeCheck-Windows-portable.zip)) |
             | **Mac** | [VibeCheck-macOS.dmg](https://github.com/${{ github.repository }}/releases/latest/download/VibeCheck-macOS.dmg) (Apple silicon and Intel) |
+
+            **Manual:** [VibeCheck-Manual.pdf](https://github.com/${{ github.repository }}/releases/latest/download/VibeCheck-Manual.pdf) (also inside the app: the Manual button).
 
             **First time you open it:** these installers are not signed with a paid certificate.
             Windows shows "Windows protected your PC": click **More info**, then **Run anyway**.

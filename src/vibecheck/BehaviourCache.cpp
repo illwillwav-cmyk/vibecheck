@@ -91,7 +91,16 @@ BehaviourReport measureInChildProcess (const juce::PluginDescription& descriptio
         if (line.startsWith ("BEHAVIOUR"))
             return BehaviourReport::fromMachine (line);
 
-    failed.error = child.getExitCode() != 0 ? "the plugin crashed while it was being measured" : "no result came back";
+    // Exit code 2 is the measuring process saying it could not find or load the plugin; anything else
+    // non-zero means it died part-way, which is the plugin's doing.
+    const auto code = child.getExitCode();
+
+    if (output.contains ("nothing found matching"))
+        failed.error = "the plugin could not be found by the measuring process";
+    else if (output.contains ("could not load"))
+        failed.error = "the plugin would not load";
+    else
+        failed.error = code != 0 ? "the plugin crashed while it was being measured" : "no result came back";
     return failed;
 }
 } // namespace vibecheck

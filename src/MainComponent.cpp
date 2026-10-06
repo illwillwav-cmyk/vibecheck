@@ -8,6 +8,35 @@
 
 namespace
 {
+/** Opens the manual that ships with the app: inside the bundle on a Mac, beside the program on
+    Windows. A build without one (run straight from the build folder, say) falls back to the copy
+    published with the latest release. */
+void openManual()
+{
+    const auto app = juce::File::getSpecialLocation (juce::File::currentApplicationFile);
+
+   #if JUCE_MAC
+    const auto manual = app.getChildFile ("Contents/Resources/VibeCheck Manual.pdf");
+   #else
+    const auto manual = app.getSiblingFile ("VibeCheck Manual.pdf");
+   #endif
+
+    if (manual.existsAsFile())
+    {
+        manual.startAsProcess();
+        return;
+    }
+
+    if (const auto address = vibecheck::updateUrl(); address.endsWith ("latest.json"))
+    {
+        juce::URL (address.upToLastOccurrenceOf ("latest.json", false, false) + "VibeCheck-Manual.pdf").launchInDefaultBrowser();
+        return;
+    }
+
+    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon, "Manual not found",
+                                            "The manual is installed with VibeCheck. This copy was started without one.");
+}
+
 /** "⌘3" on a Mac, "Ctrl+3" elsewhere. */
 juce::String shortcutLabel (int number)
 {
@@ -90,6 +119,11 @@ MainComponent::MainComponent (PluginScanner& scanner)
 
     // A quiet notice at the foot of the rail when a newer version has been published. It appears only
     // if this build knows where to look, and the check is one small request made once at launch.
+    mbs::setButtonStyle (manualButton, mbs::ButtonStyle::outline);
+    manualButton.setTooltip ("Open the VibeCheck manual");
+    manualButton.onClick = [] { openManual(); };
+    addAndMakeVisible (manualButton);
+
     mbs::setButtonStyle (updateNotice, mbs::ButtonStyle::primary);
     updateNotice.setVisible (false);
     updateNotice.onClick = [this] { if (updatePage.isNotEmpty()) juce::URL (updatePage).launchInDefaultBrowser(); };
@@ -381,7 +415,8 @@ void MainComponent::resized()
         button->setBounds (navArea.removeFromTop (44));
 
     // Above the studio mark at the foot of the rail.
-    updateNotice.setBounds (railBounds.getX() + 22, railBounds.getBottom() - 98, railWidth - 44, 34);
+    manualButton.setBounds (railBounds.getX() + 22, railBounds.getBottom() - 98, railWidth - 44, 34);
+    updateNotice.setBounds (railBounds.getX() + 22, railBounds.getBottom() - 140, railWidth - 44, 34);
 
     auto head = headerBounds.reduced (mbs::pagePadding, 0).withTrimmedTop (4);
     themeToggle->setBounds (head.removeFromRight (38).withSizeKeepingCentre (38, 38));

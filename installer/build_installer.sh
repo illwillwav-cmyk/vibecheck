@@ -162,6 +162,8 @@ ditto "$APP" "$DMG_ROOT/VibeCheck.app"
 ln -s /Applications "$DMG_ROOT/Applications"
 cp "$ROOT/assets/icon/dmg_background.tiff" "$DMG_ROOT/.background/background.tiff"
 cp "$ROOT/installer/resources/READ ME FIRST.txt" "$DMG_ROOT/READ ME FIRST.txt"
+# The manual is inside the app too (the Manual button opens it); this copy is for reading before installing.
+[ -f "$ROOT/docs/VibeCheck-Manual.pdf" ] && cp "$ROOT/docs/VibeCheck-Manual.pdf" "$DMG_ROOT/VibeCheck Manual.pdf"
 
 # An uninstaller you can double-click, that reads the same script as the repository.
 {
@@ -200,6 +202,9 @@ tell application "Finder"
         set position of item "Applications" of container window to {490, 210}
         set position of item "Uninstall VibeCheck.command" of container window to {250, 340}
         set position of item "READ ME FIRST.txt" of container window to {410, 340}
+        try
+            set position of item "VibeCheck Manual.pdf" of container window to {330, 340}
+        end try
         close
         open
         update without registering applications

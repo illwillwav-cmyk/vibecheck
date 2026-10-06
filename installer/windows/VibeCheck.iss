@@ -59,10 +59,12 @@ Name: "addtopath"; Description: "Add the &command line tool (vibecheck) to PATH"
 Source: "{#SourceDir}\VibeCheck.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "vibecheck.cmd"; DestDir: "{app}"; Flags: ignoreversion
 Source: "README-Windows.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\VibeCheck Manual.pdf"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]
 Name: "{autoprograms}\VibeCheck"; Filename: "{app}\VibeCheck.exe"; Comment: "Measure, check and compare audio plugins"
 Name: "{autodesktop}\VibeCheck"; Filename: "{app}\VibeCheck.exe"; Tasks: desktopicon
+Name: "{autoprograms}\VibeCheck Manual"; Filename: "{app}\VibeCheck Manual.pdf"; Comment: "How to use VibeCheck and read its results"
 
 [Run]
 Filename: "{app}\VibeCheck.exe"; Description: "Launch VibeCheck"; Flags: nowait postinstall skipifsilent

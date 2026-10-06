@@ -51,6 +51,11 @@ void HeadlessBehaviour::run()
         found = vibecheck::lookupPlugin (scanner.getFormatManager(), scanner.getKnownPluginList(), query, description);
     }
 
+    // A plugin opened straight from a file is not in the scanned list, so its id is simply its path.
+    if (! found && query.startsWith ("id:"))
+        found = vibecheck::lookupPlugin (scanner.getFormatManager(), scanner.getKnownPluginList(),
+                                         query.fromFirstOccurrenceOf ("id:", false, false), description);
+
     if (! found)
     {
         std::cout << "nothing found matching \"" << query << "\" - run --scan first, or pass a path" << std::endl;
