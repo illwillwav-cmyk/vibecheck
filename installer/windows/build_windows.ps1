@@ -37,14 +37,17 @@ Write-Host "==> VibeCheck $version ($Config)" -ForegroundColor Cyan
 if (-not $SkipBuild) {
   # CMAKE_EXTRA_ARGS lets a release build pass extra options, such as -DVIBECHECK_UPDATE_URL=...
   $extra = @(); if ($env:CMAKE_EXTRA_ARGS) { $extra = $env:CMAKE_EXTRA_ARGS -split '\s+' | Where-Object { $_ } }
-  cmake -S . -B $buildDir -G "Visual Studio 17 2022" -A x64 @extra
+  # No generator is named, so CMake uses the newest Visual Studio it finds.
+  cmake -S . -B $buildDir -A x64 @extra
   if ($LASTEXITCODE -ne 0) { throw "CMake configure failed" }
   cmake --build $buildDir --config $Config --parallel
   if ($LASTEXITCODE -ne 0) { throw "Build failed" }
 }
 
-$exe = Join-Path $buildDir "VibeCheck_artefacts\$Config\VibeCheck.exe"
-if (-not (Test-Path $exe)) { throw "Not found: $exe" }
+# The folder depends on the generator (Visual Studio adds the configuration, Ninja may not).
+$exe = (Get-ChildItem $buildDir -Recurse -Filter VibeCheck.exe -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -match 'VibeCheck_artefacts' } | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
+if (-not $exe -or -not (Test-Path $exe)) { throw "VibeCheck.exe was not found under $buildDir" }
 
 Write-Host "==> Self-test" -ForegroundColor Cyan
 & $exe --selftest

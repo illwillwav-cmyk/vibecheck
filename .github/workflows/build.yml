@@ -37,18 +37,27 @@ jobs:
           path: .cpm-cache
           key: cpm-juce-win-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
 
+      # Use whichever Visual Studio the runner has, rather than naming a version: GitHub moves its
+      # Windows image to a new Visual Studio every so often and a hard-coded generator breaks.
+      - name: Set up the MSVC compiler
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
       - name: Configure
         shell: pwsh
-        run: cmake -S . -B build-win -G "Visual Studio 17 2022" -A x64 "-DVIBECHECK_UPDATE_URL=$env:UPDATE_URL"
+        run: cmake -S . -B build-win -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl "-DVIBECHECK_UPDATE_URL=$env:UPDATE_URL"
 
       - name: Build
         shell: pwsh
-        run: cmake --build build-win --config Release --parallel
+        run: cmake --build build-win --parallel
 
       - name: Self-test
         shell: pwsh
         run: |
-          & .\build-win\VibeCheck_artefacts\Release\VibeCheck.exe --selftest
+          $exe = (Get-ChildItem build-win -Recurse -Filter VibeCheck.exe | Where-Object { $_.FullName -match 'VibeCheck_artefacts' } | Select-Object -First 1).FullName
+          Write-Host "Testing $exe"
+          & $exe --selftest
           if ($LASTEXITCODE -ne 0) { throw "self-test failed" }
 
       - name: Make sure Inno Setup is installed
