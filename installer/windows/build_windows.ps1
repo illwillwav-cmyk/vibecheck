@@ -50,8 +50,11 @@ $exe = (Get-ChildItem $buildDir -Recurse -Filter VibeCheck.exe -ErrorAction Sile
 if (-not $exe -or -not (Test-Path $exe)) { throw "VibeCheck.exe was not found under $buildDir" }
 
 Write-Host "==> Self-test" -ForegroundColor Cyan
-& $exe --selftest
-if ($LASTEXITCODE -ne 0) { throw "Self-test failed" }
+# A GUI program: PowerShell neither waits for it nor sets an exit code, so start it and wait.
+$testOut = Join-Path $buildDir "selftest.txt"
+$run = Start-Process -FilePath $exe -ArgumentList "--selftest" -Wait -PassThru -NoNewWindow -RedirectStandardOutput $testOut
+Get-Content $testOut | Select-Object -Last 12
+if ($run.ExitCode -ne 0) { throw "Self-test failed (exit code $($run.ExitCode))" }
 
 # Optional signing of the executable, then the installer.
 $sign = $null

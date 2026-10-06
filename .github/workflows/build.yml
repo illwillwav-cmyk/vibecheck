@@ -57,8 +57,11 @@ jobs:
         run: |
           $exe = (Get-ChildItem build-win -Recurse -Filter VibeCheck.exe | Where-Object { $_.FullName -match 'VibeCheck_artefacts' } | Select-Object -First 1).FullName
           Write-Host "Testing $exe"
-          & $exe --selftest
-          if ($LASTEXITCODE -ne 0) { throw "self-test failed" }
+          # VibeCheck is a GUI program, and PowerShell does not wait for those or set an exit code,
+          # so start it explicitly, wait, and read the real exit code.
+          $run = Start-Process -FilePath $exe -ArgumentList '--selftest' -Wait -PassThru -NoNewWindow -RedirectStandardOutput selftest.txt
+          Get-Content selftest.txt
+          if ($run.ExitCode -ne 0) { throw "self-test failed (exit code $($run.ExitCode))" }
 
       - name: Make sure Inno Setup is installed
         shell: pwsh
