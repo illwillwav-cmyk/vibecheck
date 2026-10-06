@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VibeCheck</title>
-<meta name="description" content="Measure, check and compare audio plugins, and see which ones look machine-generated.">
+<meta name="description" content="Measure, check and compare audio plugins: what they do to the sound, whether they behave, and what they cost.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'%3E%3Crect width='1024' height='1024' rx='220' fill='%23161614'/%3E%3Cg fill='%23cdc9bf'%3E%3Crect x='170' y='170' width='77' height='430' rx='38'/%3E%3Crect x='300' y='300' width='77' height='370' rx='38'/%3E%3Crect x='430' y='430' width='77' height='290' rx='38'/%3E%3Crect x='560' y='300' width='77' height='370' rx='38'/%3E%3Crect x='690' y='170' width='77' height='430' rx='38'/%3E%3C/g%3E%3C/svg%3E">
 <style>
   :root {
@@ -72,7 +72,7 @@
   </svg>
 
   <h1>VibeCheck</h1>
-  <p class="lede">Measure an audio plugin, check that it behaves, compare two of them, and see which ones in your library look machine-generated.</p>
+  <p class="lede">Measure an audio plugin, check that it behaves, compare two of them, and see what each one costs your computer.</p>
 
   <div id="setup">This page does not know where the downloads live yet. Open <code>docs/index.html</code> and set <code>REPO</code> to <code>"owner/repository"</code>, or open the page as <code>?repo=owner/repository</code>.</div>
 
@@ -86,7 +86,6 @@
   <ul class="features">
     <li><b>Graph Analyzer</b> &mdash; frequency response, distortion, phase, aliasing and more, measured by playing test signals through the plugin.</li>
     <li><b>Plugin Health</b> &mdash; thirteen robustness checks: finite output, buffer-size independence, latency honesty, state save and restore.</li>
-    <li><b>AI Check</b> &mdash; reads each plugin's file for the marks of generated code, and with a Deep check measures what its audio thread does.</li>
     <li><b>A/B Compare</b> and <b>Performance Profiler</b> &mdash; two plugins side by side, and what each one costs the CPU.</li>
   </ul>
 

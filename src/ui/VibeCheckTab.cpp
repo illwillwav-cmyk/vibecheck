@@ -577,7 +577,9 @@ VibeCheckTab::VibeCheckTab (PluginScanner& scanner)
     detailViewport.setScrollBarThickness (8);
     addAndMakeVisible (detailViewport);
 
+   #if VIBECHECK_AI_CHECK
     sweepLibrary();
+   #endif   // with the page switched off, nothing reads the library in the background
 }
 
 VibeCheckTab::~VibeCheckTab()

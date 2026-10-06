@@ -56,7 +56,9 @@ private:
     ComparisonTab comparisonTab;
     PerformanceTab performanceTab;
 
-    std::array<std::unique_ptr<mbs::NavButton>, 6> nav;
+    /** One button per page that is switched on, with the page each one opens. */
+    std::vector<std::unique_ptr<mbs::NavButton>> nav;
+    std::vector<int> navPages;
     std::unique_ptr<ThemeToggle> themeToggle;
 
     mbs::IconTextButton manualButton { "Manual", mbs::Icon::external };

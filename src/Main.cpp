@@ -157,6 +157,19 @@ public:
     {
         vibecheck::attachConsoleForCommandLine (commandLine);
 
+       #if ! VIBECHECK_AI_CHECK
+        // AI Check is switched off in this build, and so are the switches that belong to it.
+        for (const auto* flag : { "--vibecheck=", "--vibedemo=", "--behaviour=", "--sourcecheck=", "--export=", "--merge=",
+                                  "--evaluate", "--label-ai=", "--label-human=", "--label-clear=" })
+            if (commandLine.contains (flag))
+            {
+                std::cout << "AI Check is switched off in this version of VibeCheck, so " << flag << " is not available." << std::endl;
+                setApplicationReturnValue (2);
+                quit();
+                return;
+            }
+       #endif
+
         // The app relaunches its own binary to scan plugins. In that case there is no UI:
         // this process exists only to load one plugin at a time and report what it found.
         if (auto worker = createScanWorkerIfRequested (commandLine))

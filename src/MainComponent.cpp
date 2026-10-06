@@ -66,6 +66,11 @@ const PageInfo pages[] = {
     { "A/B Compare",          "A/B Compare",          "Lay two plugins over the same measurements.",                             mbs::Icon::compare },
     { "Performance Profiler", "Performance Profiler", "Benchmark CPU load, latency and memory across buffer sizes.",             mbs::Icon::gauge },
 };
+
+constexpr int aiCheckPage = 3;
+
+/** AI Check is built in only when asked for; see the option in CMakeLists.txt. */
+constexpr bool aiCheckEnabled = VIBECHECK_AI_CHECK != 0;
 } // namespace
 
 /** Sun or moon, whichever theme a click would switch to. */
@@ -104,10 +109,17 @@ MainComponent::MainComponent (PluginScanner& scanner)
 {
     setWantsKeyboardFocus (true);
 
+    for (int page = 0; page < (int) std::size (pages); ++page)
+        if (page != aiCheckPage || aiCheckEnabled)
+            navPages.push_back (page);
+
+    nav.resize (navPages.size());
+
     for (int i = 0; i < (int) nav.size(); ++i)
     {
-        nav[(size_t) i] = std::make_unique<mbs::NavButton> (pages[i].name, pages[i].icon, shortcutLabel (i + 1));
-        nav[(size_t) i]->setButtonText (pages[i].name);
+        const auto& info = pages[navPages[(size_t) i]];
+        nav[(size_t) i] = std::make_unique<mbs::NavButton> (info.name, info.icon, shortcutLabel (i + 1));
+        nav[(size_t) i]->setButtonText (info.name);
         nav[(size_t) i]->onClick = [this, i] { setView (i); };
         addAndMakeVisible (*nav[(size_t) i]);
         addChildComponent (pageAt (i));
@@ -184,7 +196,7 @@ MainComponent::MainComponent (PluginScanner& scanner)
                            safe->repaint (safe->chipBounds);
 
                            // The plugin menus follow the library on their own; only the sweep needs a nudge.
-                           if (added > 0)
+                           if (added > 0 && aiCheckEnabled)
                                safe->vibeCheckTab.sweepLibrary();
                        });
 
@@ -204,7 +216,7 @@ MainComponent::~MainComponent()
 
 juce::Component* MainComponent::pageAt (int index)
 {
-    switch (index)
+    switch (navPages[(size_t) juce::jlimit (0, (int) navPages.size() - 1, index)])
     {
         case 0:  return &pluginManagerTab;
         case 1:  return &analysisTab;
@@ -283,19 +295,27 @@ void MainComponent::setView (int index)
 
 void MainComponent::selectTab (const juce::String& name)
 {
-    for (int i = 0; i < (int) nav.size(); ++i)
-        if (juce::String (pages[i].name).containsIgnoreCase (name) || name.containsIgnoreCase (pages[i].name))
-        {
-            setView (i);
-            return;
-        }
+    // Which page is meant, by its name or by a shorter word for it.
+    int wanted = -1;
 
-    if (name.containsIgnoreCase ("Scan"))        setView (0);
-    else if (name.containsIgnoreCase ("Analy"))  setView (1);
-    else if (name.containsIgnoreCase ("Health")) setView (2);
-    else if (name.containsIgnoreCase ("AI") || name.containsIgnoreCase ("Vibe")) setView (3);
-    else if (name.containsIgnoreCase ("Compar") || name.containsIgnoreCase ("A/B")) setView (4);
-    else if (name.containsIgnoreCase ("Perf") || name.containsIgnoreCase ("Profil")) setView (5);
+    for (int page = 0; page < (int) std::size (pages); ++page)
+        if (juce::String (pages[page].name).containsIgnoreCase (name) || name.containsIgnoreCase (pages[page].name))
+            wanted = page;
+
+    if (wanted < 0)
+    {
+        if (name.containsIgnoreCase ("Scan"))        wanted = 0;
+        else if (name.containsIgnoreCase ("Analy"))  wanted = 1;
+        else if (name.containsIgnoreCase ("Health")) wanted = 2;
+        else if (name.containsIgnoreCase ("AI") || name.containsIgnoreCase ("Vibe")) wanted = aiCheckPage;
+        else if (name.containsIgnoreCase ("Compar") || name.containsIgnoreCase ("A/B")) wanted = 4;
+        else if (name.containsIgnoreCase ("Perf") || name.containsIgnoreCase ("Profil")) wanted = 5;
+    }
+
+    // A page that is switched off has no button, so asking for it does nothing.
+    for (int i = 0; i < (int) navPages.size(); ++i)
+        if (navPages[(size_t) i] == wanted)
+            setView (i);
 }
 
 bool MainComponent::keyPressed (const juce::KeyPress& key)
@@ -304,7 +324,7 @@ bool MainComponent::keyPressed (const juce::KeyPress& key)
     {
         const auto c = key.getTextCharacter();
 
-        if (c >= '1' && c <= '6')
+        if (c >= '1' && c < '1' + (juce::juce_wchar) nav.size())
         {
             setView (c - '1');
             return true;
@@ -366,11 +386,11 @@ void MainComponent::paint (juce::Graphics& g)
 
         g.setColour (p.ink);
         g.setFont (mbs::brandFont (24.0f, true));
-        g.drawText (pages[currentIndex].title, head.removeFromTop (head.getHeight() / 2 + 6), juce::Justification::bottomLeft);
+        g.drawText (pages[navPages[(size_t) currentIndex]].title, head.removeFromTop (head.getHeight() / 2 + 6), juce::Justification::bottomLeft);
 
         g.setColour (p.inkMuted);
         g.setFont (mbs::brandFont (13.5f));
-        g.drawText (pages[currentIndex].subtitle, head.withTrimmedRight (chipBounds.getWidth() + 80), juce::Justification::topLeft, true);
+        g.drawText (pages[navPages[(size_t) currentIndex]].subtitle, head.withTrimmedRight (chipBounds.getWidth() + 80), juce::Justification::topLeft, true);
     }
 
     // The scan chip: a dot that breathes while the library is being checked.

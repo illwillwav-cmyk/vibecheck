@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 # The version below is bumped automatically by .githooks/pre-commit on every commit.
-project(VibeCheck VERSION 0.6.0 LANGUAGES C CXX)
+project(VibeCheck VERSION 0.6.1 LANGUAGES C CXX)
 
 # Windows: link the C++ runtime statically, so the app runs on a machine that has never had the
 # Visual C++ redistributable installed. Must be set before the target is created.
@@ -49,6 +49,12 @@ juce_add_gui_app(VibeCheck
     MICROPHONE_PERMISSION_ENABLED TRUE
     MICROPHONE_PERMISSION_TEXT "VibeCheck needs audio input to audition plugins."
 )
+
+# AI Check is switched off: against real libraries it leaned on template leftovers that plenty of
+# careful commercial plugins also carry, and it presented guesses with more confidence than the
+# evidence supports. The code stays so it can return once it has been measured against enough
+# plugins of known origin. Turn it on for development with -DVIBECHECK_AI_CHECK=ON.
+option(VIBECHECK_AI_CHECK "Include the AI Check page and its command-line switches" OFF)
 
 # Where the app looks for news of a newer version (a small latest.json). Empty means it never checks.
 # The release workflow sets this to the address of the file it publishes with each release.
@@ -146,6 +152,7 @@ target_compile_definitions(VibeCheck PRIVATE
     JUCE_APPLICATION_NAME_STRING="$<TARGET_PROPERTY:VibeCheck,JUCE_PRODUCT_NAME>"
     JUCE_APPLICATION_VERSION_STRING="$<TARGET_PROPERTY:VibeCheck,JUCE_VERSION>"
     VIBECHECK_UPDATE_URL="${VIBECHECK_UPDATE_URL}"
+    VIBECHECK_AI_CHECK=$<BOOL:${VIBECHECK_AI_CHECK}>
 
     # Plugin hosting. AudioUnit exists only on Apple platforms; Windows hosts VST3.
     JUCE_PLUGINHOST_VST3=1

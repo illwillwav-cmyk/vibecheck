@@ -10,12 +10,12 @@
 </style></head>
 <body>
   <h1>What's the vibe?</h1>
-  <p class="sub">VibeCheck measures what an audio plugin does to your signal, and reads its binary for signs of how it was made.</p>
+  <p class="sub">VibeCheck measures what an audio plugin does to your signal, checks that it behaves, and compares it with others.</p>
   <ul>
     <li><b>Graph Analyzer</b> runs test signals through a plugin offline and reports distortion, frequency and phase response, dynamics, latency and noise.</li>
-    <li><b>AI Check</b> reads each plugin file on disk and shows the evidence behind a score. It never loads or runs the plugin.</li>
+    <li><b>Plugin Health</b> runs thirteen robustness checks: valid output, any buffer size, honest latency, saved settings.</li>
     <li><b>A/B Compare</b> and <b>Performance Profiler</b> put two plugins side by side and tell you how many instances a session can hold.</li>
   </ul>
   <p>This installer puts VibeCheck in your Applications folder. It takes a few seconds and needs less than 20 MB.</p>
-  <p class="note">VibeCheck does not connect to the internet and does not send anything anywhere.</p>
+  <p class="note">VibeCheck checks once at launch whether a newer version exists, by reading one small public file. It sends nothing about you or your plugins.</p>
 </body></html>

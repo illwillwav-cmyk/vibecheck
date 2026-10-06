@@ -1,18 +1,24 @@
 # VibeCheck
 
-A standalone plugin host that does two things to an audio plugin: measures its DSP the way
-Plugin Doctor does, and inspects its binary for signs that it was written by an AI.
+A standalone plugin host that measures an audio plugin's DSP the way Plugin Doctor does, checks
+that it behaves, and compares it with others.
 
-Six pages: a plugin manager, a graph analyzer, a plugin health check, an AI check, an A/B compare
-and a performance profiler (Command+1 to Command+6). Measurements run offline, the AI check only
-reads files, and there is an installer package and a disk image (see Installing).
+Five pages: a plugin manager, a graph analyzer, a plugin health check, an A/B compare and a
+performance profiler (Command+1 to Command+5). Measurements run offline, and there are installers
+for Mac and Windows (see Installing).
+
+> **AI Check is switched off.** A sixth page tried to judge whether a plugin was machine-generated.
+> Run against real libraries it was biased: it leaned on template leftovers that careful
+> commercial plugins also carry, and stated guesses with more confidence than the evidence
+> supports. It is left out of every build by default. The code and the sections about it below
+> remain for development (`-DVIBECHECK_AI_CHECK=ON`); it should not ship again until it has been
+> measured against enough plugins of known origin, hand-written ones especially.
 
 - **Graph Analyzer** measures distortion, frequency and phase response, dynamics, latency, noise,
   aliasing and tail. A Parameters window sets any control before measuring; instruments are played
   with MIDI instead of fed audio; an optional sweep plots distortion against level and frequency;
   results copy as text or save as an image.
 - **Plugin Health** is a robustness check in the spirit of pluginval, in plain language (below).
-- **AI Check** reads each plugin file for fingerprints of generated code.
 - **A/B Compare** puts two plugins through the same measurements side by side.
 - **Performance Profiler** is a guided three-step page: choose a plugin, describe your session
   (buffer size, sample rate, copies), and read how heavy it is, with a clickable heat map of every
