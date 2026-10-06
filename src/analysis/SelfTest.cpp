@@ -5,7 +5,9 @@
 #include "ui/PluginChooser.h"
 #include "vibecheck/Export.h"
 #include "vibecheck/Heuristics.h"
+#include "vibecheck/Labels.h"
 #include "vibecheck/PEReader.h"
+#include "vibecheck/SourceInspector.h"
 #include "vibecheck/UpdateCheck.h"
 
 #include <cmath>
@@ -571,6 +573,187 @@ int runSelfTest()
         check ("a garbled result is refused", BehaviourReport::fromMachine ("nonsense").ok ? 1.0 : 0.0, 0.0, 0.0);
     }
 
+    std::cout << "\nsource code" << std::endl;
+    {
+        const auto has = [] (const SourceReport& report, const char* start)
+        {
+            for (const auto& finding : report.findings)
+                if (finding.finding.startsWith (start))
+                    return true;
+
+            return false;
+        };
+
+        // A generated-looking plugin: empty state functions, and an audio callback that allocates,
+        // locks and looks parameters up by name.
+        {
+            SourceScan scan;
+            scan.addSource ("Source/PluginProcessor.cpp", juce::String (juce::CharPointer_UTF8 (
+                "void P::getStateInformation (juce::MemoryBlock& destData) {}\n"
+                "void P::setStateInformation (const void* data, int size) { juce::ignoreUnused (data, size); }\n"
+                "void P::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)\n"
+                "{\n"
+                "    std::vector<float> temp;\n"
+                "    temp.push_back (1.0f);\n"
+                "    auto* scratch = new float[512];\n"
+                "    const std::lock_guard<std::mutex> guard (mutex);\n"
+                "    auto a = apvts.getRawParameterValue (\"A\")->load();\n"
+                "    auto b = apvts.getRawParameterValue (\"B\")->load();\n"
+                "    auto c = apvts.getRawParameterValue (\"C\")->load();\n"
+                "    // \"new\" in a comment, and a string that says new Thing, must not count\n"
+                "    log (\"allocating new Buffer here\");\n"
+                "}\n")));
+            const auto report = scan.finish ("a test");
+
+            check ("empty save and restore are found", has (report, "saving and restoring settings are both empty") ? 1.0 : 0.0, 1.0, 0.0);
+            check ("an allocation in the audio callback is found", has (report, "the audio callback asks for memory") ? 1.0 : 0.0, 1.0, 0.0);
+            check ("a growing container in the audio callback is found", has (report, "the audio callback grows a container") ? 1.0 : 0.0, 1.0, 0.0);
+            check ("a lock in the audio callback is found", has (report, "the audio callback waits for a lock") ? 1.0 : 0.0, 1.0, 0.0);
+            check ("parameter lookups by name are found", has (report, "looks parameters up by name") ? 1.0 : 0.0, 1.0, 0.0);
+            // 12 for the state functions, 3 x 6 for the callback, 4 for the lookups.
+            check ("and they add up as documented", report.points(), 34.0, 0.001);
+
+            bool quotedCleanly = false;
+
+            for (const auto& finding : report.findings)
+                if (finding.finding.startsWith ("looks parameters") && finding.detail.contains ("getRawParameterValue (\"A\")"))
+                    quotedCleanly = true;
+
+            check ("examples quote the line as written", quotedCleanly ? 1.0 : 0.0, 1.0, 0.0);
+        }
+
+        // A careful plugin: real state functions, a clean callback, the same words only in comments
+        // and strings. Nothing should be found.
+        {
+            SourceScan scan;
+            scan.addSource ("Source/Proc.cpp", juce::String (
+                "void P::getStateInformation (juce::MemoryBlock& d) { copyXmlToBinary (*state.createXml(), d); }\n"
+                "void P::setStateInformation (const void* data, int size) { restore (data, size); }\n"
+                "void P::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)\n"
+                "{\n"
+                "    // never call new or push_back here; take no lock_guard\n"
+                "    const juce::SpinLock::ScopedTryLockType attempt (lock);\n"
+                "    renewGain (buffer);   /* malloc( is only mentioned */\n"
+                "    for (int i = 0; i < buffer.getNumSamples(); ++i) process (i);\n"
+                "}\n"
+                "void helper() { auto* later = new Thing(); std::vector<int> v; v.push_back (1); }\n"));
+            const auto report = scan.finish ("a test");
+            check ("a clean plugin's source scores nothing", report.points(), 0.0, 0.001);
+            check ("and is still a successful read", report.ok ? 1.0 : 0.0, 1.0, 0.0);
+        }
+
+        // Typographic characters, step comments, and the repository's own evidence.
+        {
+            SourceScan scan;
+            juce::String text;
+
+            for (int i = 0; i < 6; ++i)
+                text << juce::String (juce::CharPointer_UTF8 ("int v")) << i << juce::String (juce::CharPointer_UTF8 (" = 0; // set up \xe2\x80\x94 then go \xe2\x86\x92 next\n"));
+
+            text << "// Step 1: load\n// Step 2: run\n// Step 3: save\n";
+            scan.addSource ("a.cpp", text);
+            scan.noteFile ("CLAUDE.md");
+            scan.noteFile (".cursor/rules/style.mdc");
+            scan.noteFile ("docs/readme.md");
+            scan.addCommitMessages ({ "Fix the meter\n\nCo-Authored-By: Claude <noreply@anthropic.com>", "Tidy up", "Bump version", "Add tests" });
+            const auto report = scan.finish ("a test");
+
+            check ("typographic comments are found", has (report, "typographic characters") ? 1.0 : 0.0, 1.0, 0.0);
+            check ("numbered step comments are found", has (report, "numbered step comments") ? 1.0 : 0.0, 1.0, 0.0);
+            check ("AI tool files are found", has (report, "the repository is set up for an AI coding tool") ? 1.0 : 0.0, 1.0, 0.0);
+            check ("an AI co-author line is found", has (report, "AI co-author lines") ? 1.0 : 0.0, 1.0, 0.0);
+            // 28 (one commit in four) + 20 + 6 + 4
+            check ("and they add up as documented", report.points(), 58.0, 0.001);
+
+            const auto back = SourceReport::fromJson (report.toJson());
+            check ("a source report round-trips", back.ok && back.findings.size() == report.findings.size() && std::abs (back.points() - report.points()) < 1.0e-6 ? 1.0 : 0.0, 1.0, 0.0);
+        }
+
+        {
+            SourceScan scan;
+            scan.addCommitMessages ({ "Add reverb\n\nCo-authored-by: Jane Smith <jane@example.com>", "Fix clip" });
+            scan.addSource ("a.cpp", "int main() { return 0; }\n");
+            check ("a human co-author is not an AI trailer", scan.finish ("t").points(), 0.0, 0.001);
+        }
+
+        check ("framework folders are not read", SourceScan::wantsContents ("JUCE/modules/juce_core/juce_core.cpp", 100) ? 1.0 : 0.0, 0.0, 0.0);
+        check ("third-party folders are not read", SourceScan::wantsContents ("third_party/lib/x.cpp", 100) ? 1.0 : 0.0, 0.0, 0.0);
+        check ("the plugin's own source is read", SourceScan::wantsContents ("Source/PluginProcessor.cpp", 100) ? 1.0 : 0.0, 1.0, 0.0);
+        check ("generated resource files are not read", SourceScan::wantsContents ("Source/BinaryData.cpp", 100) ? 1.0 : 0.0, 0.0, 0.0);
+        check ("files that are not code are not read", SourceScan::wantsContents ("Source/notes.txt", 100) ? 1.0 : 0.0, 0.0, 0.0);
+
+        const auto repo = parseRepository ("see https://github.com/SessionLoops/PitchNet.git for source");
+        check ("a GitHub address is parsed", repo.owner == "SessionLoops" && repo.name == "PitchNet" ? 1.0 : 0.0, 1.0, 0.0);
+        check ("something that is not one is refused", parseRepository ("https://example.com/a/b").isValid() ? 1.0 : 0.0, 0.0, 0.0);
+
+        const auto found = findRepository ({ "https://github.com/juce-framework/JUCE", "https://github.com/steinbergmedia/vst3sdk",
+                                             "Report bugs at https://github.com/acme/sway/issues", "https://github.com/acme/sway" });
+        check ("a plugin's own repository is picked out from the frameworks'", found.owner == "acme" && found.name == "sway" ? 1.0 : 0.0, 1.0, 0.0);
+        check ("a binary with only framework addresses has none", findRepository ({ "https://github.com/juce-framework/JUCE" }).isValid() ? 1.0 : 0.0, 0.0, 0.0);
+
+        // Source evidence joins the score, and makes an unreadable binary judgeable.
+        BinaryFacts sealed;
+        sealed.ok = true;
+        sealed.paceWrapped = true;
+
+        juce::PluginDescription description;
+        description.name = "Sway";
+        description.manufacturerName = "Wright Audio";
+        description.version = "2.3.1";
+
+        SourceReport source;
+        source.ok = true;
+        source.origin = "github.com/acme/sway";
+        source.findings.push_back ({ "AI co-author lines in the commit history", "3 of the last 20 commits", "why", 28.0 });
+
+        check ("a copy-protected plugin cannot be judged from its binary", assessVibe (sealed, description).conclusive ? 1.0 : 0.0, 0.0, 0.0);
+        const auto judged = assessVibe (sealed, description, nullptr, &source);
+        check ("but can from its source", judged.conclusive ? 1.0 : 0.0, 1.0, 0.0);
+        check ("and the source points are its score", judged.score, 28.0, 0.001);
+        check ("under their own family", judged.pointsFor (Family::source), 28.0, 0.001);
+    }
+
+    std::cout << "\nlabels" << std::endl;
+    {
+        check ("labels survive their text form", labelFromString (toString (Label::vibeCoded)) == Label::vibeCoded
+                                                 && labelFromString (toString (Label::handWritten)) == Label::handWritten
+                                                 && labelFromString ("") == Label::none ? 1.0 : 0.0, 1.0, 0.0);
+        check ("both builds of a plugin share a label", labelKey ("AL-1", "Naturl Audio") == labelKey (" al-1 ", "NATURL AUDIO") ? 1.0 : 0.0, 1.0, 0.0);
+
+        const auto plugin = [] (const char* name, double score, const char* label, std::initializer_list<const char*> findings)
+        {
+            auto* object = new juce::DynamicObject();
+            object->setProperty ("name", name);
+            object->setProperty ("score", score);
+            object->setProperty ("conclusive", true);
+            object->setProperty ("label", label);
+            juce::Array<juce::var> list;
+
+            for (const auto* finding : findings)
+            {
+                auto* item = new juce::DynamicObject();
+                item->setProperty ("finding", finding);
+                list.add (juce::var (item));
+            }
+
+            object->setProperty ("findings", list);
+            return juce::var (object);
+        };
+
+        juce::Array<juce::var> plugins { plugin ("A", 60.0, "ai", { "template files", "timer editor" }),
+                                         plugin ("B", 35.0, "ai", { "template files" }),
+                                         plugin ("C", 12.0, "human", { "timer editor" }),
+                                         plugin ("D", 0.0, "human", {}),
+                                         plugin ("E", 80.0, "", { "template files" }) };
+        const auto text = evaluateLabels (juce::var (plugins));
+
+        check ("the evaluation counts each group", text.contains ("2 known vibe-coded, 2 known hand-written (of 5 rows)") ? 1.0 : 0.0, 1.0, 0.0);
+        check ("it reports what the 30 line catches and wrongly flags", text.contains ("catches 2 of 2 vibe-coded, wrongly flags 0 of 2 hand-written") ? 1.0 : 0.0, 1.0, 0.0);
+        check ("it reports that the 10 line wrongly flags one", text.contains ("catches 2 of 2 vibe-coded, wrongly flags 1 of 2 hand-written") ? 1.0 : 0.0, 1.0, 0.0);
+        check ("it lists the most telling fingerprint first", text.indexOf ("template files") < text.indexOf ("timer editor") && text.indexOf ("template files") > 0 ? 1.0 : 0.0, 1.0, 0.0);
+        check ("with one kind missing it says what is needed", evaluateLabels (juce::var (juce::Array<juce::var> { plugin ("A", 60.0, "ai", {}) })).contains ("Both kinds are needed") ? 1.0 : 0.0, 1.0, 0.0);
+    }
+
     std::cout << "\nupdate notice" << std::endl;
     {
         check ("a later patch is newer", isNewerVersion ("0.5.1", "0.5.0") ? 1.0 : 0.0, 1.0, 0.0);
@@ -700,8 +883,12 @@ int runSelfTest()
         const std::vector<SweepEntry> first { makeEntry ("Alpha", "Acme", 40.0, "10-aaaa"), makeEntry ("Beta", "Acme", 2.0, "20-bbbb") };
         const std::vector<SweepEntry> second { makeEntry ("Alpha", "Acme", 50.0, "10-aaaa"), makeEntry ("Gamma", "Other", 9.0, "30-cccc") };
 
-        check ("an export is written", vibecheck::writeExport (a, first, "9.9").wasOk() ? 1.0 : 0.0, 1.0, 0.0);
-        vibecheck::writeExport (b, second, "9.9");
+        // Each person has labelled Alpha as vibe-coded; only the first has labelled Beta.
+        const std::map<juce::String, Label> firstLabels { { labelKey ("Alpha", "Acme"), Label::vibeCoded }, { labelKey ("Beta", "Acme"), Label::handWritten } };
+        const std::map<juce::String, Label> secondLabels { { labelKey ("Alpha", "Acme"), Label::vibeCoded } };
+
+        check ("an export is written", vibecheck::writeExport (a, first, "9.9", firstLabels).wasOk() ? 1.0 : 0.0, 1.0, 0.0);
+        vibecheck::writeExport (b, second, "9.9", secondLabels);
 
         const auto text = a.loadFileAsString();
         check ("an export holds no file path", text.contains ("/Users/") || text.contains ("someone") ? 1.0 : 0.0, 0.0, 0.0);
@@ -719,6 +906,23 @@ int runSelfTest()
                     alphaScore = (double) plugin["score"];
                     alphaReports = (double) plugin["reports"];
                 }
+
+        double alphaAi = -1.0, betaHuman = -1.0;
+        juce::String alphaLabel, gammaLabel = "unset";
+
+        if (const auto* list = merged.master["plugins"].getArray())
+            for (const auto& plugin : *list)
+            {
+                if (plugin["name"].toString() == "Alpha") { alphaAi = (double) plugin["labelAi"]; alphaLabel = plugin["label"].toString(); }
+                if (plugin["name"].toString() == "Beta")  betaHuman = (double) plugin["labelHuman"];
+                if (plugin["name"].toString() == "Gamma") gammaLabel = plugin["label"].toString();
+            }
+
+        check ("two people's labels count as two votes", alphaAi, 2.0, 0.0);
+        check ("and decide the plugin's label", alphaLabel == "ai" ? 1.0 : 0.0, 1.0, 0.0);
+        check ("one person's label counts as one", betaHuman, 1.0, 0.0);
+        check ("an unlabelled plugin stays unlabelled", gammaLabel.isEmpty() ? 1.0 : 0.0, 1.0, 0.0);
+        check ("the spreadsheet carries the votes", vibecheck::masterToCsv (merged.master).contains ("says_vibe_coded") ? 1.0 : 0.0, 1.0, 0.0);
 
         check ("a shared plugin takes the median score", alphaScore, 45.0, 0.001);
         check ("and counts both reports", alphaReports, 2.0, 0.0);

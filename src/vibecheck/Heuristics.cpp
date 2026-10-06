@@ -160,12 +160,14 @@ juce::String toString (Family family)
         case Family::dspNaivety:     return "DSP";
         case Family::stringArtifact: return "strings";
         case Family::behaviour:      return "behaviour";
+        case Family::source:         return "source";
     }
 
     return "other";
 }
 
-VibeReport assessVibe (const BinaryFacts& facts, const juce::PluginDescription& description, const BehaviourReport* behaviour)
+VibeReport assessVibe (const BinaryFacts& facts, const juce::PluginDescription& description, const BehaviourReport* behaviour,
+                       const SourceReport* source)
 {
     VibeReport report;
     report.opacityReason = facts.opacityReason();
@@ -642,8 +644,26 @@ VibeReport assessVibe (const BinaryFacts& facts, const juce::PluginDescription& 
         report.notEvaluated.add ("behaviour: the plugin has not been run. Use Deep check to measure what its audio thread does.");
     }
 
+    // --- Source: what the code and its repository show ----------------------------------------
+    const auto sourceRead = source != nullptr && source->ok;
+
+    if (sourceRead)
+    {
+        for (const auto& finding : source->findings)
+            add (Family::source, finding.finding, finding.detail, finding.explanation, finding.points);
+
+        if (source->findings.empty())
+            report.humanSignals.add ("its source code was read (" + source->origin + ") and nothing was found in it");
+    }
+    else if (source == nullptr)
+    {
+        report.notEvaluated.add ("source: not read. If the plugin's code is public, Source check reads it and its commit history.");
+    }
+
     report.score = juce::jlimit (0.0, 100.0, report.score);
-    report.conclusive = facts.readable() && report.confidence >= 0.35;
+
+    // Readable source is evidence in its own right, even where the binary is encrypted.
+    report.conclusive = (facts.readable() && report.confidence >= 0.35) || sourceRead;
 
     if (! report.conclusive)
     {

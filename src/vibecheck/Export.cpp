@@ -64,15 +64,41 @@ juce::String csvCell (const juce::String& text)
 {
     return "\"" + text.replace ("\"", "\"\"") + "\"";
 }
+
+/** What a Source check found, without the quoted lines: for a local folder those are someone's
+    private code, and for any plugin the finding names are what a master list needs. */
+juce::var sourceVar (const juce::String& json)
+{
+    if (json.isEmpty())
+        return {};
+
+    const auto report = SourceReport::fromJson (json);
+
+    if (! report.ok)
+        return {};
+
+    juce::Array<juce::var> findings;
+
+    for (const auto& finding : report.findings)
+        findings.add (object ({ { "finding", finding.finding }, { "points", finding.points } }));
+
+    return object ({ { "origin", report.origin }, { "files", report.files }, { "lines", report.lines },
+                     { "commits", report.commitsRead }, { "findings", findings } });
+}
 } // namespace
 
-juce::var buildExport (const std::vector<SweepEntry>& entries, const juce::String& appVersion)
+juce::var buildExport (const std::vector<SweepEntry>& entries, const juce::String& appVersion,
+                       const std::map<juce::String, Label>& labels)
 {
     juce::Array<juce::var> plugins;
 
     for (const auto& entry : entries)
     {
         const auto& d = entry.description;
+
+        // What the person exporting knows about this plugin, if they have said.
+        const auto known = labels.find (labelKey (d));
+        const auto label = known != labels.end() ? toString (known->second) : juce::String();
 
         juce::Array<juce::var> findings;
 
@@ -92,7 +118,9 @@ juce::var buildExport (const std::vector<SweepEntry>& entries, const juce::Strin
                                { "headline", entry.headline },
                                { "deep", entry.deep },
                                { "findings", findings },
-                               { "behaviour", behaviourVar (entry.behaviourLine) } }));
+                               { "behaviour", behaviourVar (entry.behaviourLine) },
+                               { "source", sourceVar (entry.sourceJson) },
+                               { "label", label } }));
     }
 
     return object ({ { "format", exportFormat },
@@ -105,9 +133,10 @@ juce::var buildExport (const std::vector<SweepEntry>& entries, const juce::Strin
                      { "plugins", plugins } });
 }
 
-juce::Result writeExport (const juce::File& destination, const std::vector<SweepEntry>& entries, const juce::String& appVersion)
+juce::Result writeExport (const juce::File& destination, const std::vector<SweepEntry>& entries, const juce::String& appVersion,
+                          const std::map<juce::String, Label>& labels)
 {
-    const auto text = juce::JSON::toString (buildExport (entries, appVersion), false);
+    const auto text = juce::JSON::toString (buildExport (entries, appVersion, labels), false);
 
     if (! destination.replaceWithText (text))
         return juce::Result::fail ("could not write " + destination.getFullPathName());
@@ -212,12 +241,27 @@ MergeResult mergeExports (const juce::Array<juce::File>& files)
         auto* merged = new juce::DynamicObject();
 
         for (const auto* name : { "name", "manufacturer", "format", "version", "category", "instrument", "binaryId",
-                                  "confidence", "conclusive", "headline", "deep", "findings", "behaviour" })
+                                  "confidence", "conclusive", "headline", "deep", "findings", "behaviour", "source" })
             merged->setProperty (name, base[name]);
 
         merged->setProperty ("score", scores.empty() ? (double) base["score"] : medianOf (scores));
         merged->setProperty ("scoreMin", scores.empty() ? (double) base["score"] : *std::min_element (scores.begin(), scores.end()));
         merged->setProperty ("scoreMax", scores.empty() ? (double) base["score"] : *std::max_element (scores.begin(), scores.end()));
+        // What the people who reported it say they know. One vote per file, whatever the rule set.
+        std::vector<int> aiVoters, humanVoters;
+
+        for (const auto& row : rows)
+        {
+            const auto label = labelFromString (row.plugin["label"].toString());
+            auto& voters = label == Label::vibeCoded ? aiVoters : humanVoters;
+
+            if (label != Label::none && std::find (voters.begin(), voters.end(), row.file) == voters.end())
+                voters.push_back (row.file);
+        }
+
+        merged->setProperty ("labelAi", (int) aiVoters.size());
+        merged->setProperty ("labelHuman", (int) humanVoters.size());
+        merged->setProperty ("label", aiVoters.size() > humanVoters.size() ? "ai" : humanVoters.size() > aiVoters.size() ? "human" : "");
         merged->setProperty ("reports", (int) contributors.size());
         merged->setProperty ("heuristics", newest);
         merged->setProperty ("olderReports", (int) (rows.size() - current.size()));
@@ -238,7 +282,7 @@ MergeResult mergeExports (const juce::Array<juce::File>& files)
 
 juce::String masterToCsv (const juce::var& master)
 {
-    juce::String csv = "name,manufacturer,format,version,score,score_min,score_max,reports,verdict,deep,cpu_percent,allocations_per_block,findings\n";
+    juce::String csv = "name,manufacturer,format,version,score,score_min,score_max,reports,verdict,known_as,says_vibe_coded,says_hand_written,deep,cpu_percent,allocations_per_block,findings\n";
 
     if (const auto* list = master["plugins"].getArray())
         for (const auto& plugin : *list)
@@ -255,7 +299,8 @@ juce::String masterToCsv (const juce::var& master)
                 << csvCell (plugin["format"].toString()) << ',' << csvCell (plugin["version"].toString()) << ','
                 << juce::String ((double) plugin["score"], 1) << ',' << juce::String ((double) plugin["scoreMin"], 1) << ','
                 << juce::String ((double) plugin["scoreMax"], 1) << ',' << (int) plugin["reports"] << ','
-                << csvCell (plugin["headline"].toString()) << ',' << ((bool) plugin["deep"] ? "yes" : "no") << ','
+                << csvCell (plugin["headline"].toString()) << ',' << csvCell (plugin["label"].toString()) << ','
+                << (int) plugin["labelAi"] << ',' << (int) plugin["labelHuman"] << ',' << ((bool) plugin["deep"] ? "yes" : "no") << ','
                 << (behaviour.isObject() ? juce::String ((double) behaviour["cpuPercent"], 2) : juce::String())
                 << ',' << (behaviour.isObject() ? juce::String ((double) behaviour["allocationsPerBlock"], 2) : juce::String())
                 << ',' << csvCell (findings.joinIntoString ("; ")) << '\n';

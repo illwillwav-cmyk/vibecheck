@@ -3,6 +3,7 @@
 #include <JuceHeader.h>
 
 #include "BinaryInspector.h"
+#include "SourceInspector.h"
 #include "analysis/BehaviourProbe.h"
 
 #include <vector>
@@ -15,12 +16,13 @@ enum class Family
     boilerplate,    ///< Template scaffolding left untouched.
     dspNaivety,     ///< Audio code written without regard for the audio thread.
     stringArtifact, ///< Text the author never meant to ship.
-    behaviour       ///< What the plugin does on the audio thread when it is actually run.
+    behaviour,      ///< What the plugin does on the audio thread when it is actually run.
+    source          ///< What its source code and repository show, where they are public.
 };
 
 /** Bump this whenever a heuristic or its weight changes. Sweep results are cached against it, so a
     stale score from an older rule set is never shown beside a fresh one. */
-constexpr int heuristicsVersion = 6;
+constexpr int heuristicsVersion = 7;
 
 juce::String toString (Family family);
 
@@ -69,5 +71,6 @@ struct VibeReport
 
 /** Weighs the fingerprints. Reads only what the inspector found - it never loads or runs code. */
 VibeReport assessVibe (const BinaryFacts& facts, const juce::PluginDescription& description,
-                       const BehaviourReport* behaviour = nullptr);
+                       const BehaviourReport* behaviour = nullptr,
+                       const SourceReport* source = nullptr);
 } // namespace vibecheck

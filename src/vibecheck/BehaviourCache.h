@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 
+#include "SourceInspector.h"
 #include "analysis/BehaviourProbe.h"
 
 #include <optional>
@@ -13,6 +14,10 @@ namespace vibecheck
     read from here, which is what keeps their scores equal. */
 std::optional<BehaviourReport> findBehaviour (juce::PropertiesFile* settings, const juce::PluginDescription& description, juce::int64 modified);
 void storeBehaviour (juce::PropertiesFile* settings, const juce::PluginDescription& description, juce::int64 modified, const BehaviourReport& report);
+
+/** The same, for what a Source check found. */
+std::optional<SourceReport> findSource (juce::PropertiesFile* settings, const juce::PluginDescription& description, juce::int64 modified);
+void storeSource (juce::PropertiesFile* settings, const juce::PluginDescription& description, juce::int64 modified, const SourceReport& report);
 
 /** Measures a plugin by running this program again on it, so a plugin that crashes or hangs cannot
     take the app with it. Gives up after the timeout. Blocks, so call it from a worker thread. */

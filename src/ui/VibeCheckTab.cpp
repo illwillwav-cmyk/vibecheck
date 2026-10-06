@@ -21,6 +21,7 @@ juce::Colour familyColour (vibecheck::Family family)
         case vibecheck::Family::dspNaivety:     return p.warn;
         case vibecheck::Family::stringArtifact: return p.bad;
         case vibecheck::Family::behaviour:      return p.warn.interpolatedWith (p.bad, 0.5f);
+        case vibecheck::Family::source:         return p.accent2.interpolatedWith (p.bad, 0.45f);
     }
 
     return p.inkMuted;
@@ -35,6 +36,7 @@ juce::String familyName (vibecheck::Family family)
         case vibecheck::Family::dspNaivety:     return "DSP habits";
         case vibecheck::Family::stringArtifact: return "Stray text";
         case vibecheck::Family::behaviour:      return "Behaviour";
+        case vibecheck::Family::source:         return "Source";
     }
 
     return "Other";
@@ -42,7 +44,7 @@ juce::String familyName (vibecheck::Family family)
 
 constexpr vibecheck::Family allFamilies[] = { vibecheck::Family::metadata, vibecheck::Family::boilerplate,
                                               vibecheck::Family::dspNaivety, vibecheck::Family::stringArtifact,
-                                              vibecheck::Family::behaviour };
+                                              vibecheck::Family::behaviour, vibecheck::Family::source };
 } // namespace
 
 // --- The detail column ---------------------------------------------------------------------------
@@ -429,6 +431,7 @@ private:
         if (counts[(int) vibecheck::Family::dspNaivety])     traits.add ("naive DSP habits");
         if (counts[(int) vibecheck::Family::stringArtifact]) traits.add ("chat-assistant text");
         if (counts[(int) vibecheck::Family::behaviour])      traits.add ("careless audio-thread behaviour");
+        if (counts[(int) vibecheck::Family::source])         traits.add ("signs of AI assistance in its source");
 
         return "This binary carries the marks of an unedited generated project: "
                + (traits.isEmpty() ? juce::String ("several fingerprints") : traits.joinIntoString (", ")) + ".";
@@ -518,6 +521,22 @@ VibeCheckTab::VibeCheckTab (PluginScanner& scanner)
     deepButton.onClick = [this] { runDeepCheck(); };
     addAndMakeVisible (deepButton);
 
+    sourceButton.setEnabled (false);
+    sourceButton.setTooltip ("Read this plugin's source code and commit history, if they are public");
+    sourceButton.onClick = [this] { runSourceCheck(); };
+    addAndMakeVisible (sourceButton);
+
+    // What you know about the plugin, as opposed to what the detector guesses.
+    labelBox.addItem (vibecheck::describe (vibecheck::Label::none), 1);
+    labelBox.addItem (vibecheck::describe (vibecheck::Label::vibeCoded), 2);
+    labelBox.addItem (vibecheck::describe (vibecheck::Label::handWritten), 3);
+    labelBox.setSelectedId (1, juce::dontSendNotification);
+    labelBox.setTooltip ("Record what you know for certain about this plugin. Labels go into the export and are what the detector is measured against.");
+    labelBox.onChange = [this] { labelChanged(); };
+    addChildComponent (labelBox);
+
+    labels = vibecheck::allLabels (pluginScanner.getSettings());
+
     updateButton.setEnabled (false);
     updateButton.onClick = [this]
     {
@@ -565,6 +584,7 @@ VibeCheckTab::~VibeCheckTab()
 {
     stopTimer();
     deepCancel = true;
+    sourceCancel = true;
     sweep.cancel();
     pool.removeAllJobs (true, 10000);
     table.setModel (nullptr);
@@ -572,7 +592,7 @@ VibeCheckTab::~VibeCheckTab()
 
 bool VibeCheckTab::isIdle() const
 {
-    return ! busy && ! sweeping && ! deepRunning && animatedListProgress >= 1.0f && ! detail->isAnimating();
+    return ! busy && ! sweeping && ! deepRunning && ! sourceRunning && animatedListProgress >= 1.0f && ! detail->isAnimating();
 }
 
 void VibeCheckTab::lookAndFeelChanged()
@@ -802,8 +822,13 @@ void VibeCheckTab::paintCell (juce::Graphics& g, int row, int columnId, int widt
             g.drawText (entry->description.name, text.removeFromTop (height / 2 + 2).withTrimmedTop (6), juce::Justification::bottomLeft, true);
             g.setColour (p.inkFaint);
             g.setFont (mbs::brandFont (11.5f));
-            g.drawText (entry->description.manufacturerName.isEmpty() ? juce::String ("Unknown maker") : entry->description.manufacturerName,
-                        text, juce::Justification::topLeft, true);
+            auto maker = entry->description.manufacturerName.isEmpty() ? juce::String ("Unknown maker") : entry->description.manufacturerName;
+
+            // What the person knows, shown beside what the detector thinks.
+            if (const auto known = labels.find (vibecheck::labelKey (entry->description)); known != labels.end())
+                maker << dot << (known->second == vibecheck::Label::vibeCoded ? "you know: vibe-coded" : "you know: hand-written");
+
+            g.drawText (maker, text, juce::Justification::topLeft, true);
             break;
         }
 
@@ -894,6 +919,12 @@ void VibeCheckTab::inspectQuery (const juce::String& query)
 
                 if (std::exchange (safe->deepAfterInspect, false))
                     safe->runDeepCheck();
+
+                if (const auto source = std::exchange (safe->sourceAfterInspect, {}); source.isNotEmpty())
+                {
+                    const auto repository = vibecheck::parseRepository (source);
+                    safe->startSourceJob (description, repository, repository.isValid() ? juce::File() : juce::File (source));
+                }
             }
             else
             {
@@ -913,6 +944,12 @@ void VibeCheckTab::inspect (juce::PluginDescription description)
     updateButton.setEnabled (true);
     uninstallButton.setEnabled (true);
     deepButton.setEnabled (! deepRunning);
+    sourceButton.setEnabled (! sourceRunning);
+
+    const auto known = labels.find (vibecheck::labelKey (description));
+    const auto label = known != labels.end() ? known->second : vibecheck::Label::none;
+    labelBox.setSelectedId (label == vibecheck::Label::vibeCoded ? 2 : label == vibecheck::Label::handWritten ? 3 : 1, juce::dontSendNotification);
+    labelBox.setVisible (true);
 
     headerTitle = description.name;
     headerSub = description.pluginFormatName + dot + (description.manufacturerName.isEmpty() ? juce::String ("unknown maker") : description.manufacturerName);
@@ -929,7 +966,9 @@ void VibeCheckTab::inspect (juce::PluginDescription description)
         const auto bundle = inspector->locate (description);
         const auto modified = bundle.exists() ? bundle.getLastModificationTime().toMilliseconds() : juce::int64 (0);
         const auto behaviour = vibecheck::findBehaviour (settings, description, modified);
-        const auto report = vibecheck::assessVibe (facts, description, behaviour.has_value() ? &*behaviour : nullptr);
+        const auto source = vibecheck::findSource (settings, description, modified);
+        const auto report = vibecheck::assessVibe (facts, description, behaviour.has_value() ? &*behaviour : nullptr,
+                                                   source.has_value() ? &*source : nullptr);
         const auto deep = behaviour.has_value();
 
         juce::String details;
@@ -1065,16 +1104,181 @@ void VibeCheckTab::exportLibrary()
                                     if (safe == nullptr || file == juce::File())
                                         return;
 
-                                    const auto written = vibecheck::writeExport (file, safe->entries, JUCEApplication::getInstance()->getApplicationVersion());
+                                    const auto written = vibecheck::writeExport (file, safe->entries, JUCEApplication::getInstance()->getApplicationVersion(), safe->labels);
 
                                     juce::AlertWindow::showMessageBoxAsync (
                                         written.wasOk() ? juce::MessageBoxIconType::InfoIcon : juce::MessageBoxIconType::WarningIcon,
                                         written.wasOk() ? "Exported " + mbs::num ((int) safe->entries.size()) + " plugins" : "Could not export",
                                         written.wasOk() ? "Saved to " + file.getFullPathName()
-                                                              + "\n\nIt holds each plugin's name, maker, version, score and the fingerprints behind it. "
+                                                              + "\n\nIt holds each plugin's name, maker, version, score, the fingerprints behind it, and any labels you gave. "
                                                                 "It contains no file paths, user names or anything about this computer."
                                                         : written.getErrorMessage());
                                 });
+}
+
+void VibeCheckTab::labelChanged()
+{
+    if (! hasCurrent)
+        return;
+
+    const auto id = labelBox.getSelectedId();
+    const auto label = id == 2 ? vibecheck::Label::vibeCoded : id == 3 ? vibecheck::Label::handWritten : vibecheck::Label::none;
+
+    vibecheck::setLabel (pluginScanner.getSettings(), currentDescription, label);
+    labels = vibecheck::allLabels (pluginScanner.getSettings());
+    table.repaint();
+}
+
+void VibeCheckTab::runSourceCheck()
+{
+    if (! hasCurrent || sourceRunning)
+        return;
+
+    const auto description = currentDescription;
+
+    // Many open-source plugins carry their own repository address; offer it rather than ask for it.
+    pool.addJob ([description, safe = juce::Component::SafePointer<VibeCheckTab> (this)]
+    {
+        auto inspector = vibecheck::createBinaryInspector();
+        const auto found = vibecheck::findRepository (inspector->inspect (description).strings);
+
+        juce::MessageManager::callAsync ([safe, description, found]
+        {
+            if (safe == nullptr)
+                return;
+
+            auto* window = new juce::AlertWindow ("Read the source code of " + description.name,
+                                                  found.isValid() ? "This plugin names a public repository. VibeCheck can download it from GitHub and read the code and "
+                                                                    "its recent commit history. Nothing is sent but the request for those files."
+                                                                  : "If this plugin's code is public, paste its GitHub address. If you have the code on this "
+                                                                    "computer, choose its folder instead.",
+                                                  juce::MessageBoxIconType::QuestionIcon, safe.getComponent());
+            window->addTextEditor ("address", found.isValid() ? "https://" + found.display() : juce::String(), "GitHub address");
+            window->addButton ("Read from GitHub", 1, juce::KeyPress (juce::KeyPress::returnKey));
+            window->addButton ("Choose a folder...", 2);
+            window->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+
+            window->enterModalState (true, juce::ModalCallbackFunction::create ([safe, window, description] (int result)
+            {
+                if (safe == nullptr || result == 0)
+                    return;
+
+                if (result == 1)
+                {
+                    const auto repository = vibecheck::parseRepository (window->getTextEditorContents ("address"));
+
+                    if (repository.isValid())
+                        safe->startSourceJob (description, repository, {});
+                    else
+                    {
+                        safe->headerFacts = "That is not a GitHub address. It should look like https://github.com/owner/name";
+                        safe->repaint();
+                    }
+
+                    return;
+                }
+
+                safe->sourceChooser = std::make_unique<juce::FileChooser> ("Choose the folder that holds " + description.name + "'s source code",
+                                                                           juce::File::getSpecialLocation (juce::File::userHomeDirectory));
+                safe->sourceChooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
+                                                  [safe, description] (const juce::FileChooser& chooser)
+                                                  {
+                                                      if (safe != nullptr && chooser.getResult().isDirectory())
+                                                          safe->startSourceJob (description, {}, chooser.getResult());
+                                                  });
+            }), true);
+        });
+    });
+}
+
+void VibeCheckTab::startSourceJob (juce::PluginDescription description, vibecheck::RepositoryRef repository, juce::File folder)
+{
+    if (sourceRunning)
+        return;
+
+    sourceRunning = true;
+    sourceCancel = false;
+    sourceButton.setEnabled (false);
+    busy = true;
+    busyBar.setActive (true);
+    headerFacts = repository.isValid() ? "Fetching " + repository.display() + "..." : juce::String ("Reading the source folder...");
+    repaint();
+
+    // The AudioUnit and VST3 builds of a plugin come from the same source, so both get the result.
+    juce::Array<juce::PluginDescription> builds;
+
+    for (const auto& entry : entries)
+        if (vibecheck::labelKey (entry.description) == vibecheck::labelKey (description))
+            builds.add (entry.description);
+
+    if (builds.isEmpty())
+        builds.add (description);
+
+    pool.addJob ([description, repository, folder, builds, settings = pluginScanner.getSettings(),
+                  safe = juce::Component::SafePointer<VibeCheckTab> (this), &cancel = sourceCancel]
+    {
+        const auto report = repository.isValid()
+                                ? vibecheck::inspectRepository (repository, cancel, [safe] (const juce::String& text)
+                                                                {
+                                                                    juce::MessageManager::callAsync ([safe, text]
+                                                                    {
+                                                                        if (safe != nullptr && safe->sourceRunning)
+                                                                        {
+                                                                            safe->headerFacts = text;
+                                                                            safe->repaint();
+                                                                        }
+                                                                    });
+                                                                })
+                                : vibecheck::inspectSourceFolder (folder);
+
+        // Where each build's file sits decides the key its result is stored under.
+        std::vector<std::pair<juce::PluginDescription, juce::int64>> targets;
+
+        if (report.ok)
+        {
+            auto inspector = vibecheck::createBinaryInspector();
+
+            for (const auto& build : builds)
+            {
+                const auto bundle = inspector->locate (build);
+                targets.emplace_back (build, bundle.exists() ? bundle.getLastModificationTime().toMilliseconds() : juce::int64 (0));
+            }
+        }
+
+        juce::MessageManager::callAsync ([safe, description, report, targets, settings]
+        {
+            if (safe == nullptr)
+                return;
+
+            safe->sourceRunning = false;
+            safe->busy = false;
+            safe->busyBar.setActive (safe->sweeping);
+            safe->sourceButton.setEnabled (safe->hasCurrent);
+
+            if (! report.ok)
+            {
+                safe->headerFacts = "Source check did not finish: " + report.error;
+                safe->repaint();
+                return;
+            }
+
+            for (const auto& [build, modified] : targets)
+                vibecheck::storeSource (settings, build, modified, report);
+
+            // Weigh the library again so every build of this plugin shows the new score in the list;
+            // everything else comes straight from the cache.
+            safe->sweepLibrary();
+
+            if (safe->currentDescription.fileOrIdentifier == description.fileOrIdentifier && safe->currentDescription.name == description.name)
+                safe->inspect (description);
+        });
+    });
+}
+
+void VibeCheckTab::runSourceDemo (const juce::String& query, const juce::String& folderOrAddress)
+{
+    sourceAfterInspect = folderOrAddress;
+    inspectQuery (query);
 }
 
 void VibeCheckTab::show (const vibecheck::VibeReport& report, const juce::String& binaryDetails)
@@ -1114,6 +1318,8 @@ void VibeCheckTab::confirmUninstall()
                                           safe->updateButton.setEnabled (false);
                                           safe->uninstallButton.setEnabled (false);
                                           safe->deepButton.setEnabled (false);
+                                          safe->sourceButton.setEnabled (false);
+                                          safe->labelBox.setVisible (false);
                                           safe->headerTitle = description.name + " moved to the Trash";
                                           safe->headerSub = {};
                                           safe->headerFacts = {};
@@ -1146,12 +1352,15 @@ void VibeCheckTab::paint (juce::Graphics& g)
         return;
     }
 
+    // The label menu sits at the top right, so the title and maker stop short of it.
+    const auto roomForLabel = labelBox.isVisible() ? labelBox.getWidth() + 10 : 0;
+
     g.setColour (p.ink);
     g.setFont (mbs::brandFont (17.0f, true));
-    g.drawText (headerTitle, head.removeFromTop (24), juce::Justification::centredLeft, true);
+    g.drawText (headerTitle, head.removeFromTop (24).withTrimmedRight (roomForLabel), juce::Justification::centredLeft, true);
     g.setColour (p.inkMuted);
     g.setFont (mbs::brandFont (12.5f));
-    g.drawText (headerSub, head.removeFromTop (18), juce::Justification::centredLeft, true);
+    g.drawText (headerSub, head.removeFromTop (18).withTrimmedRight (roomForLabel), juce::Justification::centredLeft, true);
     g.setColour (p.inkFaint);
     g.setFont (mbs::monoFont (10.5f));
     g.drawText (headerFacts, head, juce::Justification::centredLeft, true);
@@ -1200,12 +1409,19 @@ void VibeCheckTab::resized()
         auto inner = detailCard.reduced (18, 14);
         inner.removeFromTop (58 + 10);
 
-        auto buttons = inner.removeFromBottom (38);
-        uninstallButton.setBounds (buttons.removeFromRight (112));
-        buttons.removeFromRight (8);
-        deepButton.setBounds (buttons.removeFromRight (136));
-        buttons.removeFromRight (8);
-        updateButton.setBounds (buttons);
+        // Two rows: the two checks that add evidence, then the two housekeeping buttons.
+        auto housekeeping = inner.removeFromBottom (36);
+        uninstallButton.setBounds (housekeeping.removeFromRight (housekeeping.getWidth() / 2 - 4));
+        housekeeping.removeFromRight (8);
+        updateButton.setBounds (housekeeping);
+
+        inner.removeFromBottom (8);
+        auto checks = inner.removeFromBottom (36);
+        deepButton.setBounds (checks.removeFromRight (checks.getWidth() / 2 - 4));
+        checks.removeFromRight (8);
+        sourceButton.setBounds (checks);
+
+        labelBox.setBounds (detailCard.getRight() - 18 - 172, detailCard.getY() + 14, 172, 28);
 
         inner.removeFromBottom (8);
         detailViewport.setBounds (inner.expanded (6, 0));

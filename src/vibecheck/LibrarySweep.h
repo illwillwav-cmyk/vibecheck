@@ -31,6 +31,7 @@ struct SweepEntry
     std::vector<SweepFinding> findings;
     juce::String binaryId;         ///< Identifies the binary itself, so the same build matches across machines.
     juce::String behaviourLine;    ///< BehaviourReport::toMachine(), when a deep check has been done.
+    juce::String sourceJson;       ///< SourceReport::toJson(), when a source check has been done.
 };
 
 /** What the whole library looks like once every plugin has been weighed. */

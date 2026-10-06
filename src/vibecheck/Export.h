@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 
+#include "Labels.h"
 #include "LibrarySweep.h"
 
 #include <vector>
@@ -16,9 +17,11 @@ constexpr int exportSchema = 1;
     came from: no file paths, no user name, no host name. A plugin is identified by what it is
     (name, maker, format, version and a short fingerprint of its binary), so the same build
     reported by two people lands on the same row of a master list. */
-juce::var buildExport (const std::vector<SweepEntry>& entries, const juce::String& appVersion);
+juce::var buildExport (const std::vector<SweepEntry>& entries, const juce::String& appVersion,
+                       const std::map<juce::String, Label>& labels = {});
 
-juce::Result writeExport (const juce::File& destination, const std::vector<SweepEntry>& entries, const juce::String& appVersion);
+juce::Result writeExport (const juce::File& destination, const std::vector<SweepEntry>& entries, const juce::String& appVersion,
+                          const std::map<juce::String, Label>& labels = {});
 
 /** The outcome of folding several exports into one list. */
 struct MergeResult

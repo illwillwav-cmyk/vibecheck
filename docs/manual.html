@@ -121,7 +121,7 @@
   <p class="eyebrow">User manual</p>
   <h1>VibeCheck</h1>
   <p class="sub">How to measure a plugin, read what the numbers mean, and compare two plugins fairly.</p>
-  <p class="meta">For VibeCheck 0.5 on macOS and Windows &middot; Make Believe Studios</p>
+  <p class="meta">For VibeCheck 0.6 on macOS and Windows &middot; Make Believe Studios</p>
 </div>
 
 <section class="flow" id="contents">
@@ -419,7 +419,7 @@
   <h2><span class="num">9</span>AI Check</h2>
   <p class="lede">Reads each plugin's file for the marks that machine-generated projects tend to leave behind.</p>
 
-  <div class="warn"><b>Read this first</b>The score measures <em>template and boilerplate smells</em>, not who wrote the code. A careful person who started from a tutorial can score high. A model that was asked for polished, idiomatic code can score low. Treat a high score as a reason to look closer, never as proof, and do not publish it as an accusation.</div>
+  <div class="warn"><b>Read this first</b>The score measures <em>template and boilerplate smells</em> and signs of AI assistance, not the quality of the plugin and not who is responsible for it. A careful person who started from a tutorial can score high. A model that was asked for polished, idiomatic code can score low. Many good developers use an AI assistant. Treat a high score as a reason to look closer, never as proof, and do not publish it as an accusation.</div>
 
   <figure>
     <img src="manual-img/ai-tiles.jpg" alt="AI Check summary tiles: plugins weighed, read as machine-made, average vibe, unreadable.">
@@ -446,7 +446,7 @@
       </table>
       <p><strong>Insufficient evidence</strong> appears instead of a score when the file is encrypted, copy-protected or otherwise unreadable. That is not a pass; it means nothing could be learned.</p>
       <h3>Where the points come from</h3>
-      <p>The bars split the score into five families. They add up to the number in the gauge.</p>
+      <p>The bars split the score into six families. They add up to the number in the gauge, which stops at 100.</p>
     </div>
     <figure>
       <img src="manual-img/ai-detail.jpg" alt="AI Check detail: gauge at 100 percent, confidence bar, summary, and points by family.">
@@ -461,6 +461,7 @@
     <tr><td>DSP habits</td><td>Audio code written without regard for the audio thread.</td></tr>
     <tr><td>Stray text</td><td>Words nobody meant to ship: chat-assistant phrases, or build paths through an AI tool's folder.</td></tr>
     <tr><td>Behaviour</td><td>What the plugin does when it is actually run. Only filled in after a Deep check.</td></tr>
+    <tr><td>Source</td><td>What its source code and repository show. Only filled in after a Source check.</td></tr>
   </table>
   <p>Below the bars, every fingerprint is listed with the exact thing that was found and its points. Click one to see why it counts. Things that point the other way, such as a paid developer signature or the maker's own web address, are listed too but never subtract.</p>
 
@@ -471,6 +472,27 @@
     <li><strong>CPU cost</strong> for what it does, <strong>uneven processing time</strong>, heavy work on <strong>every small buffer</strong>, and <strong>slowdown on near-silent input</strong>.</li>
   </ul>
   <p>The result is saved and added to the plugin's score in both the list and the panel. A plugin that needs hardware or a licence to run will time out and be reported as not measured.</p>
+
+  <h3>Source check</h3>
+  <p>A compiled plugin hides most of how it was written. If its code is public, far more can be seen. Select a plugin and press <strong>Source check</strong>. If the plugin names its own GitHub repository, the address is filled in for you; otherwise paste one, or choose a folder if you have the code on your computer. VibeCheck downloads the code and the recent commit history, reads them, and deletes the download.</p>
+  <table>
+    <tr><th>What it looks for</th><th>Why it counts</th></tr>
+    <tr><td class="wrap">AI co-author lines in the commit history</td><td>The commits themselves name an AI tool as co-author. This is the most direct evidence there is that the tool wrote part of the code.</td></tr>
+    <tr><td class="wrap">The repository is set up for an AI coding tool</td><td>Files such as <code>CLAUDE.md</code>, <code>AGENTS.md</code> or <code>.cursorrules</code> exist only to instruct one.</td></tr>
+    <tr><td class="wrap">Saving and restoring settings are empty functions</td><td>The plugin cannot bring its settings back when a project reopens. Generated projects very often leave these as the empty stubs the template gave them.</td></tr>
+    <tr><td class="wrap">The audio callback asks for memory, waits for a lock, prints, or touches a file</td><td>Each can stall the audio thread and cause a dropout. Experienced plugin developers avoid all of them there.</td></tr>
+    <tr><td class="wrap">Typographic characters, emoji or numbered steps in comments</td><td>Em dashes, arrows and "Step 1, Step 2" narration are rare in hand-written code and common in generated code. These carry little weight.</td></tr>
+  </table>
+  <p>The quoted lines show the file and line number, so you can open the code and judge for yourself. The result is saved and applies to every installed format of that plugin.</p>
+  <div class="note"><b>What a Source check proves</b>A co-author line shows that an AI tool was <em>used</em>. It does not show that the plugin is bad, or that nobody understood the code. VibeCheck itself is written with AI assistance and would be flagged by this check. Comment style on its own is deliberately not scored: measured across a hand-written plugin and a generated one of the same size, "obvious" and "narrating" comments appeared at the same rate in both.</div>
+
+  <h3>Telling VibeCheck what you know</h3>
+  <p>The menu at the top right of the evidence panel records what you know for certain about a plugin: <strong>Known vibe-coded</strong>, <strong>Known hand-written</strong>, or <strong>Not labelled</strong>. A label does not change the score. It is the answer the score is measured against.</p>
+  <ul>
+    <li>Label only what you actually know, for example a plugin you made yourself or one whose maker has said how it was built. A guess is worse than no label.</li>
+    <li>A labelled plugin shows "you know: vibe-coded" or "you know: hand-written" in the list, so you can see at a glance where the detector agrees with you.</li>
+    <li>Labels go into your export. In a master list, each person's label counts as one vote.</li>
+  </ul>
 
   <h3>The other buttons</h3>
   <ul>
@@ -534,6 +556,7 @@
       <li><strong>AI Check</strong>: find it in the list and click it.</li>
       <li>Check <em>Confidence</em> first. If it is low, stop: there is not enough to go on.</li>
       <li>Press <strong>Deep check</strong> and see whether <em>Behaviour</em> adds points.</li>
+      <li>If its code is public, press <strong>Source check</strong>. Co-author lines in the commit history are the most direct evidence you can get.</li>
       <li>Run <strong>Plugin Health</strong> as well. Whoever or whatever wrote it, a plugin that does not save its settings is the practical problem.</li>
     </ol>
   </div>
@@ -545,8 +568,11 @@
   <p><strong>Copy report</strong> (Graph Analyzer, Plugin Health) and <strong>Save image</strong> (Graph Analyzer) are the quickest ways to send someone what you found.</p>
 
   <h3>Your whole library</h3>
-  <p>In <strong>AI Check</strong>, press <strong>Export</strong>. The file holds each plugin's name, maker, format, version, score and the fingerprints behind it, plus any Deep check numbers. It contains no file paths, no user name and nothing about your computer.</p>
-  <p>Exports from several people can be folded into one master list, in which the same plugin from different people becomes one row with the middle score, the range, and how many people reported it. That step is done from the command line.</p>
+  <p>In <strong>AI Check</strong>, press <strong>Export</strong>. The file holds each plugin's name, maker, format, version, score and the fingerprints behind it, plus any Deep check numbers, Source check findings and the labels you gave. It contains no file paths, no user name, none of the quoted source lines and nothing about your computer.</p>
+  <p>Exports from several people can be folded into one master list, in which the same plugin from different people becomes one row with the middle score, the range, how many people reported it, and how many of them labelled it each way. That step is done from the command line.</p>
+
+  <h3>Measuring the detector</h3>
+  <p>Once some plugins are labelled, <code>vibecheck --evaluate</code> reports how well the scores separate them: the score range of each group, how many vibe-coded plugins each verdict line catches and how many hand-written ones it wrongly flags, and how often each fingerprint appears in each group. A fingerprint that shows up as often in hand-written plugins as in generated ones is not earning its points. With only a handful of labels the report is an indication, not an error rate; every confirmed label makes it firmer.</p>
 
   <h3>Command line</h3>
   <p>For people who want to script it. On Windows use <code>vibecheck</code> if you ticked "Add to PATH" in the installer; on a Mac the installer package offers the same command.</p>
@@ -554,8 +580,13 @@
 vibecheck --vibecheck="Plugin Name"     AI check on one plugin, with the evidence
 vibecheck --behaviour="Plugin Name"     the Deep check measurements
 vibecheck --analyze="Plugin Name"       measurements as text
+vibecheck --sourcecheck=github.com/a/b  read a public repository (or a folder)
+vibecheck --label-ai="Plugin Name"      record that you know it is vibe-coded
+vibecheck --label-human="Plugin Name"   record that you know it is hand-written
+vibecheck --evaluate                    measure the scores against your labels
 vibecheck --export=mine.json            weigh the whole library and save it
 vibecheck --merge=folder --out=all.csv  fold many exports into one list
+vibecheck --evaluate=all.json           the same measurement, on a master list
 vibecheck --selftest                    check VibeCheck's own maths</pre>
   <p>A path to a plugin file works anywhere a name does, so a plugin need not be installed to be examined. <code>--health</code> exits with an error code when a check fails, which makes it usable in a build script.</p>
 </section>
@@ -569,6 +600,7 @@ vibecheck --selftest                    check VibeCheck's own maths</pre>
     <tr><td class="wrap">A plugin loads but every measurement is silence</td><td>It is probably waiting for a licence or for hardware and is passing no audio. Open <strong>Plugin UI</strong> to see whether it is asking for something.</td></tr>
     <tr><td class="wrap">A compressor measures as "Linear"</td><td>The test signal is not reaching its threshold. Lower the threshold, or raise the input gain, and measure again.</td></tr>
     <tr><td class="wrap">Performance numbers change between runs</td><td>Other programs are competing for the CPU. Close them and run again. Cells with a yellow dot were noisy.</td></tr>
+    <tr><td class="wrap">Source check "did not finish"</td><td>The repository is private, renamed or gone, or you are offline. If you have the code, choose its folder instead.</td></tr>
     <tr><td class="wrap">Deep check "did not finish"</td><td>The plugin needs hardware or a licence to run, or it crashed. Its score stays as it was.</td></tr>
     <tr><td class="wrap">AI Check says "Insufficient evidence"</td><td>The file is encrypted or copy-protected. This is expected for most big commercial plugins and is not a verdict.</td></tr>
     <tr><td class="wrap">The Mac says the app cannot be opened</td><td>Right-click the app and choose Open, or use System Settings &rarr; Privacy &amp; Security &rarr; Open Anyway.</td></tr>
@@ -602,7 +634,7 @@ vibecheck --selftest                    check VibeCheck's own maths</pre>
     <tr><td>THD</td><td>Total harmonic distortion: the combined level of all the harmonics a plugin adds, as a percentage of the tone.</td></tr>
     <tr><td>Unity gain</td><td>Output level equal to input level: 0 dB of change.</td></tr>
   </table>
-  <footer>VibeCheck is made by Make Believe Studios. It checks once at launch whether a newer version exists by reading one small public file, and sends nothing about you or your plugins.</footer>
+  <footer>VibeCheck is made by Make Believe Studios. It checks once at launch whether a newer version exists by reading one small public file, and sends nothing about you or your plugins. A Source check downloads only the repository you point it at.</footer>
 </section>
 
 </main>

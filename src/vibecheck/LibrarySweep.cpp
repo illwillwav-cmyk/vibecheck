@@ -142,6 +142,7 @@ void LibrarySweep::run()
                 entry.deep         = item->getStringAttribute ("key").endsWith ("|deep");
                 entry.binaryId     = item->getStringAttribute ("binary");
                 entry.behaviourLine = item->getStringAttribute ("behaviour");
+                entry.sourceJson   = item->getStringAttribute ("source");
 
                 for (auto* finding : item->getChildIterator())
                     entry.findings.push_back ({ finding->getStringAttribute ("family"), finding->getStringAttribute ("finding"), finding->getDoubleAttribute ("points") });
@@ -156,6 +157,7 @@ void LibrarySweep::run()
     std::vector<juce::String> keys ((std::size_t) total);
     std::vector<char> ready ((std::size_t) total, 0);
     std::vector<std::optional<BehaviourReport>> behaviours ((std::size_t) total);
+    std::vector<std::optional<SourceReport>> sources ((std::size_t) total);
 
     // Plugins that share a binary (every Apple unit lives in one CoreAudio bundle) are grouped, so
     // each binary is read once, scored for all of its plugins, and then let go. Holding every
@@ -171,7 +173,9 @@ void LibrarySweep::run()
         // A plugin that has had a deep check carries its measured behaviour into the score, and
         // the cache key says so, so a score taken without it is never reused for one with it.
         behaviours[(std::size_t) i] = findBehaviour (cache, description, modified);
-        const auto key = cacheKeyFor (description, modified) + (behaviours[(std::size_t) i].has_value() ? "|deep" : "");
+        sources[(std::size_t) i] = findSource (cache, description, modified);
+        const auto key = cacheKeyFor (description, modified) + (sources[(std::size_t) i].has_value() ? "|src" : "")
+                         + (behaviours[(std::size_t) i].has_value() ? "|deep" : "");
 
         keys[(std::size_t) i] = key;
         results[(std::size_t) i].description = description;
@@ -226,7 +230,9 @@ void LibrarySweep::run()
                 for (const auto i : indices)
                 {
                     const auto& behaviour = behaviours[(std::size_t) i];
-                    const auto report = assessVibe (facts, pending[i], behaviour.has_value() ? &*behaviour : nullptr);
+                    const auto& source = sources[(std::size_t) i];
+                    const auto report = assessVibe (facts, pending[i], behaviour.has_value() ? &*behaviour : nullptr,
+                                                    source.has_value() ? &*source : nullptr);
                     SweepEntry entry;
                     entry.description  = pending[i];
                     entry.score        = report.score;
@@ -237,6 +243,7 @@ void LibrarySweep::run()
                     entry.deep         = behaviour.has_value();
                     entry.binaryId     = binaryFingerprint (facts.executable);
                     entry.behaviourLine = behaviour.has_value() ? behaviour->toMachine() : juce::String();
+                    entry.sourceJson   = source.has_value() ? source->toJson() : juce::String();
 
                     for (const auto& item : report.evidence)
                         entry.findings.push_back ({ toString (item.family), item.finding, item.points });
@@ -299,6 +306,7 @@ void LibrarySweep::run()
         item->setAttribute ("fingerprints", results[i].fingerprints);
         item->setAttribute ("binary", results[i].binaryId);
         item->setAttribute ("behaviour", results[i].behaviourLine);
+        item->setAttribute ("source", results[i].sourceJson);
 
         for (const auto& finding : results[i].findings)
         {

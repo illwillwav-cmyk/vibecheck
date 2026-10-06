@@ -7,6 +7,7 @@
 #include "vibecheck/BehaviourCache.h"
 #include "vibecheck/Export.h"
 #include "vibecheck/Heuristics.h"
+#include "vibecheck/Labels.h"
 #include "vibecheck/LibrarySweep.h"
 
 /** The library, weighed.
@@ -32,6 +33,9 @@ public:
     /** Inspects one plugin by name or path, without anyone clicking. Used by --vibedemo. */
     void runDemo (const juce::String& query, bool alsoDeepCheck = false);
 
+    /** Reads a plugin's source without the dialog, then shows the plugin. Used by --vibedemo --source=. */
+    void runSourceDemo (const juce::String& query, const juce::String& folderOrAddress);
+
     bool isIdle() const;
 
 private:
@@ -51,6 +55,9 @@ private:
     void show (const vibecheck::VibeReport& report, const juce::String& binaryDetails);
     void confirmUninstall();
     void runDeepCheck();
+    void runSourceCheck();
+    void startSourceJob (juce::PluginDescription, vibecheck::RepositoryRef, juce::File folder);
+    void labelChanged();
     void exportLibrary();
 
     /** Brings the table row for a plugin in line with a fresh report, so the list and the detail
@@ -78,6 +85,15 @@ private:
     std::unique_ptr<juce::FileChooser> exportChooser;
     std::atomic<bool> deepCancel { false };
     bool deepRunning = false, deepAfterInspect = false;
+
+    mbs::IconTextButton sourceButton { "Source check", mbs::Icon::search };
+    std::unique_ptr<juce::FileChooser> sourceChooser;
+    std::atomic<bool> sourceCancel { false };
+    bool sourceRunning = false;
+    juce::String sourceAfterInspect;
+
+    juce::ComboBox labelBox;
+    std::map<juce::String, vibecheck::Label> labels;
     mbs::BusyBar busyBar;
     juce::TableListBox table;
     juce::Viewport detailViewport;

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 # The version below is bumped automatically by .githooks/pre-commit on every commit.
-project(VibeCheck VERSION 0.5.2 LANGUAGES C CXX)
+project(VibeCheck VERSION 0.6.0 LANGUAGES C CXX)
 
 # Windows: link the C++ runtime statically, so the app runs on a machine that has never had the
 # Visual C++ redistributable installed. Must be set before the target is created.
@@ -106,10 +106,12 @@ target_sources(VibeCheck PRIVATE
     src/vibecheck/BinaryInspector.cpp
     src/vibecheck/Export.cpp
     src/vibecheck/Heuristics.cpp
+    src/vibecheck/Labels.cpp
     src/vibecheck/LibrarySweep.cpp
     src/vibecheck/MachOReader.cpp
     src/vibecheck/PEReader.cpp
     src/vibecheck/PluginLookup.cpp
+    src/vibecheck/SourceInspector.cpp
     src/vibecheck/UpdateCheck.cpp
 )
 

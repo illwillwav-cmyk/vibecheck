@@ -14,7 +14,9 @@
 #include "host/HeadlessVibeCheck.h"
 #include "host/PluginScanner.h"
 #include "vibecheck/Export.h"
+#include "vibecheck/Labels.h"
 #include "vibecheck/LibrarySweep.h"
+#include "vibecheck/SourceInspector.h"
 
 #include <cstdio>
 #include <iostream>
@@ -179,6 +181,39 @@ public:
             return;
         }
 
+        // Measures the scores against labelled plugins in a master list or an export.
+        if (const auto file = getSwitchValue ("--evaluate="); file.isNotEmpty())
+        {
+            const auto parsed = juce::JSON::parse (juce::File::getCurrentWorkingDirectory().getChildFile (file));
+
+            if (! parsed["plugins"].isArray())
+            {
+                std::cout << "\"" << file << "\" is not a VibeCheck export or master list" << std::endl;
+                setApplicationReturnValue (2);
+            }
+            else
+            {
+                std::cout << vibecheck::evaluateLabels (parsed["plugins"]) << std::endl;
+            }
+
+            quit();
+            return;
+        }
+
+        // Reads a plugin's source code: a folder, or the address of a public GitHub repository.
+        if (const auto target = getSwitchValue ("--sourcecheck="); target.isNotEmpty())
+        {
+            std::atomic<bool> never { false };
+            const auto repository = vibecheck::parseRepository (target);
+            const auto report = repository.isValid()
+                                    ? vibecheck::inspectRepository (repository, never, [] (const juce::String& text) { std::cout << text << std::endl; })
+                                    : vibecheck::inspectSourceFolder (juce::File::getCurrentWorkingDirectory().getChildFile (target));
+            std::cout << report.toText() << std::endl;
+            setApplicationReturnValue (report.ok ? 0 : 1);
+            quit();
+            return;
+        }
+
         if (commandLine.contains ("--selftest"))
         {
             setApplicationReturnValue (vibecheck::runSelfTest());
@@ -224,6 +259,46 @@ public:
             return;
         }
 
+        // Records what you know about a plugin: --label-ai="Name", --label-human="Name", --label-clear="Name".
+        // Every installed build of that plugin (AudioUnit and VST3) shares the label.
+        for (const auto& [flag, label] : { std::pair<const char*, vibecheck::Label> { "--label-ai=", vibecheck::Label::vibeCoded },
+                                           { "--label-human=", vibecheck::Label::handWritten },
+                                           { "--label-clear=", vibecheck::Label::none } })
+            if (const auto name = getSwitchValue (flag); name.isNotEmpty())
+            {
+                int changed = 0;
+
+                for (const auto& type : pluginScanner->getKnownPluginList().getTypes())
+                    if (type.name.equalsIgnoreCase (name) || (name.endsWith ("*") && type.name.startsWithIgnoreCase (name.dropLastCharacters (1)))
+                        || (name.startsWithIgnoreCase ("maker:") && type.manufacturerName.equalsIgnoreCase (name.substring (6))))
+                    {
+                        vibecheck::setLabel (pluginScanner->getSettings(), type, label);
+                        ++changed;
+                    }
+
+                std::cout << (changed > 0 ? juce::String (changed) + " installed build" + (changed == 1 ? "" : "s") + " now: " + vibecheck::describe (label)
+                                          : "nothing installed is called \"" + name + "\"") << std::endl;
+                setApplicationReturnValue (changed > 0 ? 0 : 2);
+                quit();
+                return;
+            }
+
+        // Weighs the library and measures the scores against the plugins you have labelled.
+        if (commandLine.contains ("--evaluate"))
+        {
+            const auto types = pluginScanner->getKnownPluginList().getTypes();
+            headlessSweep = std::make_unique<vibecheck::LibrarySweep>();
+            headlessSweep->start (types, pluginScanner->getSettings(), {},
+                                  [this] (std::vector<vibecheck::SweepEntry> results)
+                                  {
+                                      const auto exported = vibecheck::buildExport (results, getApplicationVersion(),
+                                                                                    vibecheck::allLabels (pluginScanner->getSettings()));
+                                      std::cout << vibecheck::evaluateLabels (exported["plugins"]) << std::endl;
+                                      quit();
+                                  });
+            return;
+        }
+
         // Weighs the whole library and writes the shareable export, for scripts and for friends who
         // would rather not click: `VibeCheck --export=~/Desktop/mine.json`.
         if (const auto destination = getSwitchValue ("--export="); destination.isNotEmpty())
@@ -243,7 +318,8 @@ public:
             headlessSweep->start (types, pluginScanner->getSettings(), {},
                                   [this, file] (std::vector<vibecheck::SweepEntry> results)
                                   {
-                                      const auto written = vibecheck::writeExport (file, results, getApplicationVersion());
+                                      const auto written = vibecheck::writeExport (file, results, getApplicationVersion(),
+                                                                                   vibecheck::allLabels (pluginScanner->getSettings()));
                                       std::cout << (written.wasOk() ? "wrote " + juce::String ((int) results.size()) + " plugins to " + file.getFullPathName()
                                                                     : written.getErrorMessage()) << std::endl;
                                       setApplicationReturnValue (written.wasOk() ? 0 : 1);
@@ -325,7 +401,10 @@ public:
         if (const auto target = getSwitchValue ("--vibedemo="); target.isNotEmpty() && content != nullptr)
         {
             content->selectTab ("Vibe Check");
-            content->getVibeCheckTab().runDemo (target, commandLine.contains ("--deep"));
+            if (const auto source = getSwitchValue ("--source="); source.isNotEmpty())
+                content->getVibeCheckTab().runSourceDemo (target, source);
+            else
+                content->getVibeCheckTab().runDemo (target, commandLine.contains ("--deep"));
         }
 
         if (const auto path = getSwitchValue ("--snapshot="); path.isNotEmpty())

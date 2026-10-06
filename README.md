@@ -237,6 +237,52 @@ panel, so the two always agree. Allocation counting works on macOS only; elsewhe
 scores nothing for it. Plugins that need hardware or a licence to run (the UAD ones, for example)
 time out and are reported as not measured.
 
+## Source check: reading a plugin's code
+
+Where a plugin's source is public, far more is visible than a binary shows. **Source check** on
+the AI Check page (or `--sourcecheck=github.com/owner/repo`, or a folder) reads the C and C++
+outside the framework and third-party folders, and the last twenty commit messages from GitHub's
+public feed. An archive is downloaded to one temporary file, read in place and deleted.
+
+| Finding | Points |
+|---|---|
+| AI co-author lines in the commit history | 20, 28 (a tenth of commits or more) or 40 (half or more) |
+| The repository is set up for an AI coding tool (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, ...) | 20 |
+| Saving and restoring settings are empty functions | 12 (6 for one of the two) |
+| The audio callback asks for memory, grows a container, waits for a lock, prints, or touches a file | 6 each, at most 18 |
+| Parameters looked up by name inside the audio callback, three times or more | 4 |
+| Typographic characters (em dash, arrows, curly quotes) in comments | 6 |
+| Emoji in comments | 6 |
+| Numbered step comments; comments that apologise for the code | 4 each |
+
+The rules were chosen by measuring, not by reputation. Run against a plugin known to be vibe-coded
+(PitchNet, 64,000 lines) and a hand-written one of the same size (SonoBus, 59,000 lines), the
+comment-style signals that source linters for "AI slop" rely on did **not** separate them:
+narrating comments appeared 0.3 times per thousand lines in both, "obvious" comments 3.7 against
+2.8, hedging comments 0.1 against 0.2. Those are not scored. What did separate them is above.
+SonoBus scores 0; PitchNet scores 44, and 59 with its binary.
+
+This detects AI *assistance*, not poor work: this repository carries co-author lines on every
+commit and is flagged by its own check. Results are cached, apply to every installed format of the
+plugin, and feed the list and the evidence panel alike. The export carries the finding names and
+points but never the quoted lines.
+
+## Labels and measuring the detector
+
+A detector can only be improved against plugins whose origin is known. The menu at the top of the
+evidence panel (or `--label-ai=`, `--label-human=`, `--label-clear=`; `maker:Name` labels a whole
+maker) records what you know for certain. Labels do not change a score. They travel in the export,
+count as one vote per person in the master list, and are what `--evaluate` measures against:
+
+```
+VibeCheck --evaluate              # your library against your labels
+VibeCheck --evaluate=master.json  # a master list against everyone's
+```
+
+It prints each group's score range, what each verdict line catches and wrongly flags, the best
+single threshold, and how often each fingerprint appears in each group, most telling first. A
+fingerprint as common in hand-written plugins as in generated ones is not earning its weight.
+
 ## Sharing results: export and merge
 
 **Export** on the AI Check page (or `--export=`) writes every plugin's name, maker, format,

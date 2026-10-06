@@ -20,7 +20,7 @@ void attachConsoleForCommandLine (const juce::String& commandLine)
 {
    #if JUCE_WINDOWS
     static const char* const printing[] = { "--selftest", "--scan", "--vibecheck=", "--health=", "--analyze=", "--behaviour=",
-                                            "--export=", "--merge=", "--help" };
+                                            "--export=", "--merge=", "--sourcecheck=", "--evaluate", "--label-", "--help" };
     bool prints = false;
 
     for (const auto* name : printing)

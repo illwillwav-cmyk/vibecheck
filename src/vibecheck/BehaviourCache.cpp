@@ -52,6 +52,56 @@ void storeBehaviour (juce::PropertiesFile* settings, const juce::PluginDescripti
     settings->saveIfNeeded();
 }
 
+namespace
+{
+constexpr const char* sourceCacheName = "vibeSourceCache";
+
+juce::String sourceKeyFor (const juce::PluginDescription& description, juce::int64 modified)
+{
+    return "s" + juce::String (sourceVersion) + "|" + description.fileOrIdentifier + "|" + description.name + "|" + juce::String (modified);
+}
+} // namespace
+
+std::optional<SourceReport> findSource (juce::PropertiesFile* settings, const juce::PluginDescription& description, juce::int64 modified)
+{
+    if (settings == nullptr)
+        return std::nullopt;
+
+    if (const auto xml = settings->getXmlValue (sourceCacheName))
+        if (const auto* item = xml->getChildByAttribute ("key", sourceKeyFor (description, modified)))
+        {
+            auto report = SourceReport::fromJson (item->getStringAttribute ("result"));
+
+            if (report.ok)
+                return report;
+        }
+
+    return std::nullopt;
+}
+
+void storeSource (juce::PropertiesFile* settings, const juce::PluginDescription& description, juce::int64 modified, const SourceReport& report)
+{
+    if (settings == nullptr || ! report.ok)
+        return;
+
+    auto xml = settings->getXmlValue (sourceCacheName);
+
+    if (xml == nullptr)
+        xml = std::make_unique<juce::XmlElement> ("SOURCE");
+
+    const auto key = sourceKeyFor (description, modified);
+
+    if (auto* existing = xml->getChildByAttribute ("key", key))
+        xml->removeChildElement (existing, true);
+
+    auto* item = xml->createNewChildElement ("ITEM");
+    item->setAttribute ("key", key);
+    item->setAttribute ("result", report.toJson());
+
+    settings->setValue (sourceCacheName, xml.get());
+    settings->saveIfNeeded();
+}
+
 BehaviourReport measureInChildProcess (const juce::PluginDescription& description, int timeoutMs, const std::atomic<bool>& cancel)
 {
     BehaviourReport failed;
